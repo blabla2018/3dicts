@@ -18,7 +18,7 @@ def modify_html(html, base_url):
 
     # Process all <a href="..."> to local proxy links
     for link in soup.find_all("a", href=True):
-        link["href"] = f"/proxy?url={link["href"]}"
+        link["href"] = f"/proxy?url={link['href']}"
 
     # Process JSON inside <script type="application/json"> to absolute URLs
     for script in soup.find_all("script", {"type": "application/json"}):
