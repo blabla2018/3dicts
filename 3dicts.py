@@ -9,24 +9,16 @@ app = Flask(__name__)
 def modify_html(html, base_url):
     soup = BeautifulSoup(html, "html.parser")
 
+    # Process <link> (CSS), <script> (JS), <img> (images) to absolute URLs
+    for tag in soup.find_all(src=True):
+        tag["src"] = urljoin(base_url, tag["src"])
+
+    for tag in soup.find_all(href=True):       
+        tag["href"] = urljoin(base_url, tag["href"])
+
     # Process all <a href="..."> to local proxy links
     for link in soup.find_all("a", href=True):
-        original_href = link["href"]
-        if not original_href.startswith("http"):
-            original_href = urljoin(base_url, original_href)
-        link["href"] = f"/proxy?url={original_href}"
-
-    # Process <link> (CSS), <script> (JS), <img> (images) to absolute URLs
-    tags_to_process = {"img", "source", "script", "amp-img", "link"}
-    for tag in soup.find_all(tags_to_process, {"src": True, "href": True}):
-        if tag.name in {"img", "source", "script", "amp-img"}:
-            original_src = tag["src"]
-            if not original_src.startswith("http"):
-                tag["src"] = urljoin(base_url, original_src)
-        elif tag.name == "link":
-            original_href = tag["href"]
-            if not original_href.startswith("http"):
-                tag["href"] = urljoin(base_url, original_href)
+        link["href"] = f"/proxy?url={link["href"]}"
 
     # Process JSON inside <script type="application/json"> to absolute URLs
     for script in soup.find_all("script", {"type": "application/json"}):
@@ -44,7 +36,7 @@ def modify_html(html, base_url):
 
 @app.route("/")
 def index():
-    word = request.args.get("word", "").strip().lower
+    word = request.args.get("word", "").strip()
     return render_template("index.html", word=word)
 
 def get_base_url(url):
