@@ -53,7 +53,7 @@
         }
 
         window.onload = function () {
-            let word = getQueryParam("word").trim().toLowerCase();
+            let word = getQueryParam("word").trim().toLowerCase().replace(" ", "-");
             if (word) {
                 document.getElementById("longman").src = `/proxy?url=https://www.ldoceonline.com/dictionary/${word}`;
                 document.getElementById("cambridge").src = `/proxy?url=https://dictionary.cambridge.org/dictionary/english/${word}`;

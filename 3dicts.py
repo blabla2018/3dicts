@@ -53,8 +53,6 @@ def proxy():
 
     try:
         response = requests.get(redirect_url, headers=headers)
-        response.raise_for_status()
-
         fixed_html = modify_html(response.text, get_base_url(redirect_url))
 
         return Response(fixed_html, content_type="text/html")
