@@ -109,14 +109,10 @@ def clean_html(soup, url):
     # Check URL and select the required element
     if "ldoceonline.com" in url:
         content_div = soup.find("div", class_="entry_content")  # For Longman
-    if "collinsdictionary.com" in url:
-        content_div = soup.find("div", class_="page")  # For Collins
     elif "cambridge.org" in url:
-        #content_div = soup.find(id="page-content")  # For Cambridge
         content_div = soup.find("div", class_="entry")  # For Cambridge
     elif "oxfordlearnersdictionaries.com" in url:
         content_div = soup.find(id="entryContent")  # For Oxford
-
     if content_div is None:
         return soup
 
@@ -180,8 +176,9 @@ def get_base_url(url):
     parsed_url = urlparse(url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-async def get_longman_audio(word):
-    url = f"https://www.ldoceonline.com/dictionary/{word}"
+async def get_cambridge_audio(word):
+    """Fetch US pronunciation audio from Cambridge Dictionary"""
+    url = f"https://dictionary.cambridge.org/dictionary/english/{word}"
     headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"}
     
     try:
@@ -198,13 +195,18 @@ async def get_longman_audio(word):
                     return None
             
         soup = BeautifulSoup(content, "html.parser")
-        # Find American pronunciation
-        audio_span = soup.find("span", class_="amefile")
-        if audio_span and audio_span.has_attr("data-src-mp3"):
-            return audio_span["data-src-mp3"]
+        # Find US pronunciation audio
+        us_span = soup.find("span", class_="us")
+        if us_span:
+            audio_source = us_span.find("source", type="audio/mpeg")
+            if audio_source and audio_source.has_attr("src"):
+                # Join with base URL since Cambridge uses relative paths
+                from urllib.parse import urljoin
+                return urljoin("https://dictionary.cambridge.org", audio_source["src"])
     except Exception:
         pass
     return None
+
 
 @app.route("/")
 def index():
@@ -221,11 +223,33 @@ async def audio_api():
     if not word:
         return jsonify({"error": "No word provided"}), 400
     
-    audio_url = await get_longman_audio(word)
+    audio_url = await get_cambridge_audio(word)
     if audio_url:
         return jsonify({"audio_url": audio_url})
     else:
         return jsonify({"error": "Audio not found"}), 404
+
+@app.route("/api/autocomplete")
+async def autocomplete_api():
+    """Autocomplete endpoint using Datamuse API"""
+    query = request.args.get("q", "").strip()
+    
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    try:
+        # Use Datamuse API for suggestions
+        url = f"https://api.datamuse.com/sug?s={query}&max=10"
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=3.0)
+            if response.status_code == 200:
+                results = response.json()
+                suggestions = [item['word'] for item in results]
+                return jsonify(suggestions)
+    except Exception as e:
+        print(f"Autocomplete error: {e}")
+    
+    return jsonify([])
 
 @app.route("/proxy")
 async def proxy():
