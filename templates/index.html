@@ -45,8 +45,7 @@
                         </li>
                         {% endfor %}
                         {% if not history %}
-                        <li class="history-item" style="padding: 10px; color: #999; text-align: center;">No history yet
-                        </li>
+                        <li class="history-empty">No history yet</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -148,10 +147,6 @@
             <div class="key-row">
                 <span>Toggle History</span>
                 <span class="kbd">h</span>
-            </div>
-            <div class="key-row">
-                <span>Close Popup / Unfocus</span>
-                <span class="kbd">Esc</span>
             </div>
         </div>
     </div>
