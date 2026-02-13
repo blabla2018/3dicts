@@ -1,7 +1,6 @@
 /.DS_Store
-cache/
 out.log
 err.log
 history.json
 .env
-
+.codex

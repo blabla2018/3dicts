@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 
 # Устанавливаем зависимости из requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Копируем все остальные файлы из текущей директории в контейнер
 COPY . /app

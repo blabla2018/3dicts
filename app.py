@@ -1,53 +1,28 @@
 
 import os
-import hashlib
+from urllib.parse import urlparse, urljoin
+import json
 import httpx
 from flask import Flask, request, render_template, Response, jsonify
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
-import json
 
 app = Flask(__name__)
 HISTORY_FILE = "history.json"
-CACHE_DIR = "cache"
-CACHE_LIMIT = 200
+DEFAULT_TIMEOUT_SECONDS = 4.0
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/91.0.4472.114 Safari/537.36"
+    )
+}
 
-# Ensure cache directory exists
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
-
-def get_cache_path(url):
-    """Generate a file path for the cached content based on URL hash"""
-    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
-    return os.path.join(CACHE_DIR, url_hash)
-
-def get_cached_content(url):
-    """Retrieve content from cache if it exists"""
-    cache_path = get_cache_path(url)
-    if os.path.exists(cache_path):
-        try:
-            with open(cache_path, "r", encoding="utf-8") as f:
-                return f.read()
-        except Exception:
-            return None
-    return None
-
-def save_to_cache(url, content):
-    """Save content to cache, respecting the CACHE_LIMIT"""
-    try:
-        # Check cache size and cleanup if needed
-        files = [os.path.join(CACHE_DIR, f) for f in os.listdir(CACHE_DIR) if os.path.isfile(os.path.join(CACHE_DIR, f))]
-        
-        if len(files) >= CACHE_LIMIT:
-            # Find the oldest file (LRU strategy based on modification time)
-            oldest_file = min(files, key=os.path.getmtime)
-            os.remove(oldest_file)
-
-        cache_path = get_cache_path(url)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            f.write(content)
-    except Exception:
-        pass
+HOST_SETTINGS = {
+    "dictionary.cambridge.org": {"timeout": 4.0},
+    "www.oxfordlearnersdictionaries.com": {"timeout": 4.0},
+    "www.ldoceonline.com": {"timeout": 4.0},
+    "api.datamuse.com": {"timeout": 3.0},
+}
 
 def load_history():
     if not os.path.exists(HISTORY_FILE):
@@ -176,37 +151,22 @@ def get_base_url(url):
     parsed_url = urlparse(url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-async def get_cambridge_audio(word):
-    """Fetch US pronunciation audio from Cambridge Dictionary"""
-    url = f"https://dictionary.cambridge.org/dictionary/english/{word}"
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"}
-    
-    try:
-        # Check cache first
-        content = get_cached_content(url)
-        
-        if not content:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers, follow_redirects=True)
-                content = response.text
-                if response.status_code == 200:
-                    save_to_cache(url, content)
-                else:
-                    return None
-            
-        soup = BeautifulSoup(content, "html.parser")
-        # Find US pronunciation audio
-        us_span = soup.find("span", class_="us")
-        if us_span:
-            audio_source = us_span.find("source", type="audio/mpeg")
-            if audio_source and audio_source.has_attr("src"):
-                # Join with base URL since Cambridge uses relative paths
-                from urllib.parse import urljoin
-                return urljoin("https://dictionary.cambridge.org", audio_source["src"])
-    except Exception:
-        pass
-    return None
+def get_host_settings(url):
+    host = urlparse(url).netloc
+    return HOST_SETTINGS.get(host, {"timeout": DEFAULT_TIMEOUT_SECONDS})
 
+def fetch_url(url, headers=None, follow_redirects=True):
+    settings = get_host_settings(url)
+    timeout = settings["timeout"]
+    return app.http_client.get(
+        url,
+        headers=headers,
+        follow_redirects=follow_redirects,
+        timeout=timeout,
+    )
+
+def build_proxy_response(html: str, status_code: int = 200):
+    return Response(html, content_type="text/html", status=status_code)
 
 @app.route("/")
 def index():
@@ -217,20 +177,8 @@ def index():
     history = load_history()
     return render_template("index.html", word=word, history=history)
 
-@app.route("/api/audio")
-async def audio_api():
-    word = request.args.get("word", "").strip()
-    if not word:
-        return jsonify({"error": "No word provided"}), 400
-    
-    audio_url = await get_cambridge_audio(word)
-    if audio_url:
-        return jsonify({"audio_url": audio_url})
-    else:
-        return jsonify({"error": "Audio not found"}), 404
-
 @app.route("/api/autocomplete")
-async def autocomplete_api():
+def autocomplete_api():
     """Autocomplete endpoint using Datamuse API"""
     query = request.args.get("q", "").strip()
     
@@ -240,40 +188,27 @@ async def autocomplete_api():
     try:
         # Use Datamuse API for suggestions
         url = f"https://api.datamuse.com/sug?s={query}&max=10"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=3.0)
-            if response.status_code == 200:
-                results = response.json()
-                suggestions = [item['word'] for item in results]
-                return jsonify(suggestions)
+        response = fetch_url(url, headers=REQUEST_HEADERS, follow_redirects=True)
+        if response and response.status_code == 200:
+            results = response.json()
+            suggestions = [item['word'] for item in results]
+            return jsonify(suggestions)
     except Exception as e:
         print(f"Autocomplete error: {e}")
     
     return jsonify([])
 
 @app.route("/proxy")
-async def proxy():
+def proxy():
     redirect_url = request.args.get("url", "")
     if not redirect_url:
-        return "Missing URL", 400
-
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"}
+        return Response("Missing URL", status=400)
 
     try:
-        # Check cache first
-        content = get_cached_content(redirect_url)
-        
-        if not content:
-            # If not in cache, fetch asynchronously
-            async with httpx.AsyncClient() as client:
-                response = await client.get(redirect_url, headers=headers, follow_redirects=True)
-                content = response.text
-                
-                # Check actual status code before saving
-                if response.status_code == 200:
-                    save_to_cache(redirect_url, content)
-                else:
-                    return f"Error fetching {redirect_url}: Status {response.status_code}", 502
+        response = fetch_url(redirect_url, headers=REQUEST_HEADERS, follow_redirects=True)
+        content = response.text
+        if response.status_code != 200:
+            return Response(f"Error fetching {redirect_url}: Status {response.status_code}", status=502)
 
         soup = BeautifulSoup(content, "html.parser")
         
@@ -283,9 +218,11 @@ async def proxy():
         # Fix relative links to be absolute or proxy links
         fixed_html = modify_html(soup, get_base_url(redirect_url))
 
-        return Response(fixed_html, content_type="text/html")
+        return build_proxy_response(fixed_html, status_code=200)
     except Exception as e:
-        return f"Error fetching {redirect_url}: {str(e)}", 500
+        return build_proxy_response(f"Error fetching {redirect_url}: {str(e)}", status_code=500)
+
+app.http_client = httpx.Client()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5002)
