@@ -18,7 +18,7 @@ REQUEST_HEADERS = {
 }
 
 HOST_SETTINGS = {
-    "dictionary.cambridge.org": {"timeout": 4.0},
+    "dictionary.cambridge.org": {"timeout": 8.0},
     "www.oxfordlearnersdictionaries.com": {"timeout": 4.0},
     "www.ldoceonline.com": {"timeout": 4.0},
     "api.datamuse.com": {"timeout": 3.0},
@@ -79,17 +79,89 @@ def modify_html(soup, base_url):
 
     return str(soup)
 
-def clean_html(soup, url):
-    content_div = None
-    # Check URL and select the required element
+def get_dictionary_content_div(soup, url):
     if "ldoceonline.com" in url:
-        content_div = soup.find("div", class_="entry_content")  # For Longman
-    elif "cambridge.org" in url:
-        content_div = soup.find("div", class_="entry")  # For Cambridge
-    elif "oxfordlearnersdictionaries.com" in url:
-        content_div = soup.find(id="entryContent")  # For Oxford
+        return soup.find("div", class_="entry_content")
+    if "cambridge.org" in url:
+        return soup.find("div", class_="entry")
+    if "oxfordlearnersdictionaries.com" in url:
+        return soup.find(id="entryContent")
+    return None
+
+def render_not_found_page():
+    return """
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          html, body {
+            margin: 0;
+            height: 100%;
+          }
+          body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef6ff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #2b4f7a;
+            font-size: 22px;
+            font-weight: 600;
+          }
+        </style>
+      </head>
+      <body>Word not found</body>
+    </html>
+    """
+
+def is_not_found_page(soup, requested_url, final_url, status_code):
+    host = urlparse(requested_url).netloc
+    content_div = get_dictionary_content_div(soup, final_url)
+
+    if "oxfordlearnersdictionaries.com" in host:
+        return status_code == 404 or content_div is None
+    if "ldoceonline.com" in host:
+        return "spellcheck" in final_url or content_div is None
+    if "dictionary.cambridge.org" in host:
+        return content_div is None
+    return status_code == 404
+
+def clean_html(soup, url):
+    content_div = get_dictionary_content_div(soup, url)
     if content_div is None:
         return soup
+
+    # Cambridge uses AMP image tags for entry illustrations.
+    # Convert them to regular <img> so they render without AMP runtime.
+    for amp_img in content_div.find_all("amp-img"):
+        img = soup.new_tag("img")
+        for attr in ["src", "alt", "width", "height", "class", "style", "srcset"]:
+            val = amp_img.get(attr)
+            if val:
+                img[attr] = val
+        if not img.get("loading"):
+            img["loading"] = "lazy"
+        amp_img.replace_with(img)
+
+    # Remove heavy/interactive payload inside the extracted content.
+    # We keep dictionary text and audio source tags, but drop scripts and iframes.
+    for tag in content_div.find_all(["script", "noscript", "iframe"]):
+        tag.decompose()
+
+    # Strip inline JS handlers to avoid dead JS hooks after script removal.
+    for tag in content_div.find_all(True):
+        for attr in list(tag.attrs):
+            if attr.lower().startswith("on"):
+                del tag.attrs[attr]
+
+    if "cambridge.org" in url:
+        # Cambridge audio buttons depend on icon fonts + inline onclick handlers.
+        # Replace with stable text buttons handled by local script below.
+        for btn in content_div.select(".c_aud"):
+            btn.clear()
+            btn.string = "Play"
+            btn["class"] = ["c_aud", "local-audio-btn"]
 
     # Create a new HTML document
     new_soup = BeautifulSoup("<html><head></head><body></body></html>", "html.parser")
@@ -98,9 +170,16 @@ def clean_html(soup, url):
     if soup.title:
         new_soup.head.append(soup.title)
 
+    # Keep source dictionary styles so entries render correctly.
+    # This preserves visual structure while scripts stay stripped for speed.
+    seen_css = set()
     for css in soup.find_all("link", rel="stylesheet"):
+        href = css.get("href")
+        if not href or href in seen_css:
+            continue
+        seen_css.add(href)
         new_soup.head.append(css)
-    
+
     # Add custom styles for better readability (padding)
     style = new_soup.new_tag("style")
     style.string = """
@@ -116,6 +195,23 @@ def clean_html(soup, url):
         a:hover { text-decoration: underline; }
         /* Clean up common dictionary clutter */
         .ad, .advertisement, .banner { display: none !important; }
+        iframe { display: none !important; }
+        .local-audio-btn {
+            display: inline-block;
+            margin-right: 6px;
+            padding: 2px 8px;
+            border: 1px solid #007bff;
+            border-radius: 999px;
+            color: #007bff;
+            background: #f5faff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+        .local-audio-btn:hover {
+            background: #e8f2ff;
+        }
     """
     new_soup.head.append(style)
 
@@ -140,6 +236,28 @@ def clean_html(soup, url):
                         const audio = new Audio(audioSrc);
                         audio.play();
                     }
+                });
+            });
+        """
+        new_soup.body.append(script)
+
+    if "cambridge.org" in url:
+        script = new_soup.new_tag("script")
+        script.string = """
+            document.querySelectorAll('.local-audio-btn').forEach(function(btn){
+                btn.addEventListener('click', function(event){
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const scope = btn.closest('.dpron-i, .pron-info, .pos-header, .entry-body__el') || document;
+                    const source = scope.querySelector('source[type="audio/mpeg"]');
+                    if (!source) return;
+
+                    const src = source.getAttribute('src');
+                    if (!src) return;
+
+                    const audio = new Audio(src);
+                    audio.play();
                 });
             });
         """
@@ -207,11 +325,15 @@ def proxy():
     try:
         response = fetch_url(redirect_url, headers=REQUEST_HEADERS, follow_redirects=True)
         content = response.text
+        soup = BeautifulSoup(content, "html.parser")
+
+        if is_not_found_page(soup, redirect_url, str(response.url), response.status_code):
+            not_found_html = render_not_found_page()
+            return build_proxy_response(not_found_html, status_code=404)
+
         if response.status_code != 200:
             return Response(f"Error fetching {redirect_url}: Status {response.status_code}", status=502)
 
-        soup = BeautifulSoup(content, "html.parser")
-        
         # Clean the HTML to only show relevant content
         soup = clean_html(soup, redirect_url)
         
