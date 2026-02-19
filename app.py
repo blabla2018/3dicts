@@ -132,30 +132,35 @@ def clean_html(soup, url):
     if content_div is None:
         return soup
 
-    # Cambridge uses AMP image tags for entry illustrations.
-    # Convert them to regular <img> so they render without AMP runtime.
-    for amp_img in content_div.find_all("amp-img"):
-        img = soup.new_tag("img")
-        for attr in ["src", "alt", "width", "height", "class", "style", "srcset"]:
-            val = amp_img.get(attr)
-            if val:
-                img[attr] = val
-        if not img.get("loading"):
-            img["loading"] = "lazy"
-        amp_img.replace_with(img)
+    # One pass over tags: strip handlers, drop heavy tags, and convert AMP images.
+    for tag in list(content_div.find_all(True)):
+        tag_name = tag.name.lower()
 
-    # Remove heavy/interactive payload inside the extracted content.
-    # We keep dictionary text and audio source tags, but drop scripts and iframes.
-    for tag in content_div.find_all(["script", "noscript", "iframe"]):
-        tag.decompose()
+        if tag_name in {"script", "noscript", "iframe"}:
+            tag.decompose()
+            continue
 
-    # Strip inline JS handlers to avoid dead JS hooks after script removal.
-    for tag in content_div.find_all(True):
+        if tag_name == "amp-img":
+            img = soup.new_tag("img")
+            for attr in ["src", "alt", "width", "height", "class", "style", "srcset"]:
+                val = tag.get(attr)
+                if val:
+                    img[attr] = val
+            if not img.get("loading"):
+                img["loading"] = "lazy"
+            tag.replace_with(img)
+            continue
+
         for attr in list(tag.attrs):
             if attr.lower().startswith("on"):
                 del tag.attrs[attr]
 
     if "cambridge.org" in url:
+        # Drop AMP-gated links that are not useful in embedded proxy view.
+        for link in content_div.find_all("a"):
+            if link.has_attr("amp-access"):
+                link.decompose()
+
         # Cambridge audio buttons depend on icon fonts + inline onclick handlers.
         # Replace with stable text buttons handled by local script below.
         for btn in content_div.select(".c_aud"):

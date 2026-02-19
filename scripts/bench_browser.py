@@ -4,30 +4,30 @@ import time
 import statistics
 from playwright.sync_api import sync_playwright, Error as PlaywrightError
 
-def wait_for_iframes_loaded(page, timeout_ms=60000):
+def wait_for_iframes_loaded(page, frame_ids, slug, timeout_ms=60000):
     page.wait_for_function(
         """
-        () => {
-            const ids = ['longman','cambridge','oxford'];
+        ({ ids, slug }) => {
             return ids.every(id => {
                 const frame = document.getElementById(id);
                 if (!frame) return false;
                 const src = frame.getAttribute('src') || '';
                 if (!src.includes('/proxy?url=')) return false;
+                if (!src.includes(slug)) return false;
                 const doc = frame.contentDocument;
                 if (!doc) return false;
                 if (doc.readyState !== 'complete') return false;
-                const body = doc.body;
-                if (!body) return false;
-                const text = body.innerText || '';
-                return text.trim().length > 0;
+                if (!doc.body) return false;
+                const docUrl = doc.URL || '';
+                return docUrl.includes(slug);
             });
         }
         """,
+        arg={"ids": frame_ids, "slug": slug},
         timeout=timeout_ms,
     )
 
-def run_benchmark(base_url, words, timeout_ms=60000, headless=True):
+def run_benchmark(base_url, words, frame_ids, timeout_ms=60000, headless=True):
     results = []
     with sync_playwright() as p:
         try:
@@ -40,9 +40,10 @@ def run_benchmark(base_url, words, timeout_ms=60000, headless=True):
 
         for word in words:
             url = f"{base_url}/?word={word}"
+            slug = word.strip().replace(" ", "-")
             t0 = time.perf_counter()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-            wait_for_iframes_loaded(page, timeout_ms=timeout_ms)
+            wait_for_iframes_loaded(page, frame_ids=frame_ids, slug=slug, timeout_ms=timeout_ms)
             t1 = time.perf_counter()
             elapsed = t1 - t0
             results.append((word, elapsed))
@@ -93,9 +94,12 @@ def main():
     if args.headed:
         headless = False
 
+    frame_ids = ["longman", "cambridge", "oxford"]
+
     results, total, avg = run_benchmark(
         base_url=args.base_url,
         words=words,
+        frame_ids=frame_ids,
         timeout_ms=args.timeout_ms,
         headless=headless,
     )

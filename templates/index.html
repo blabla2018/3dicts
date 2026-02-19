@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dictionary Search</title>
+    <title>{% if word %}Dictionary Search: {{ word }}{% else %}Dictionary Search{% endif %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/index.css">
     <script src="/static/index.js" defer></script>
