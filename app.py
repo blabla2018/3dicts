@@ -1,11 +1,12 @@
 
-import os
-from urllib.parse import urlparse, urljoin, unquote, quote_plus
-import json
 import html
+import json
+import os
+from urllib.parse import quote_plus, unquote, urljoin, urlparse
+
 import httpx
-from flask import Flask, request, render_template, Response, jsonify
 from bs4 import BeautifulSoup
+from flask import Flask, Response, jsonify, render_template, request
 
 app = Flask(__name__)
 HISTORY_FILE = "history.json"
@@ -131,38 +132,28 @@ def build_base_html_doc(source_soup):
     new_soup.head.append(style)
     return new_soup
 
-def extract_words_from_selector(soup, selector):
-    words = []
+def extract_suggestions_from_selector(soup, selector, base_url):
+    suggestions = []
     seen = set()
     for link in soup.select(selector):
-        word = link.get_text(" ", strip=True)
-        if not word:
+        text = link.get_text(" ", strip=True)
+        href = (link.get("href") or "").strip()
+        if not text or not href:
             continue
-        key = word.lower()
+        url = urljoin(base_url, href)
+        key = f"{text.lower()}::{url}"
         if key in seen:
             continue
         seen.add(key)
-        words.append(word)
-    return words
+        suggestions.append((text, url))
+    return suggestions
 
-def word_to_slug(word):
-    return "-".join(word.strip().lower().split())
-
-def build_dictionary_url(host, word):
-    slug = word_to_slug(word)
-    if "ldoceonline.com" in host:
-        return f"https://www.ldoceonline.com/dictionary/{slug}"
-    if "oxfordlearnersdictionaries.com" in host:
-        return f"https://www.oxfordlearnersdictionaries.com/definition/english/{slug}"
-    return f"https://dictionary.cambridge.org/dictionary/english/{slug}"
-
-def render_simple_suggestions_page(host, words):
+def render_simple_suggestions_page(suggestions):
     items = []
-    for word in words[:15]:
-        url = build_dictionary_url(host, word)
+    for text, url in suggestions[:15]:
         item = (
             f'<li><a href="/proxy?url={html.escape(url, quote=True)}">'
-            f"{html.escape(word)}</a></li>"
+            f"{html.escape(text)}</a></li>"
         )
         items.append(item)
 
@@ -178,7 +169,7 @@ def render_simple_suggestions_page(host, words):
 
 def build_not_found_suggestions_html(redirect_url, soup):
     host = urlparse(redirect_url).netloc
-    words = []
+    suggestions = []
 
     if "dictionary.cambridge.org" in host:
         path = urlparse(redirect_url).path
@@ -190,15 +181,19 @@ def build_not_found_suggestions_html(redirect_url, soup):
             spellcheck_url = f"https://dictionary.cambridge.org/spellcheck/english/?q={quote_plus(query_word)}"
             spellcheck_response = fetch_url(spellcheck_url, headers=REQUEST_HEADERS, follow_redirects=True)
             spellcheck_soup = BeautifulSoup(spellcheck_response.text, "html.parser")
-            words = extract_words_from_selector(spellcheck_soup, "div.hfl-s.lt2b ul li a")
+            suggestions = extract_suggestions_from_selector(
+                spellcheck_soup,
+                "div.hfl-s.lt2b ul li a",
+                str(spellcheck_response.url),
+            )
     elif "www.ldoceonline.com" in host:
-        words = extract_words_from_selector(soup, "ul.didyoumean li a")
+        suggestions = extract_suggestions_from_selector(soup, "ul.didyoumean li a", redirect_url)
     elif "www.oxfordlearnersdictionaries.com" in host:
-        words = extract_words_from_selector(soup, "ul.result-list li a")
+        suggestions = extract_suggestions_from_selector(soup, "ul.result-list li a", redirect_url)
 
-    if not words:
+    if not suggestions:
         return None
-    return render_simple_suggestions_page(host, words)
+    return render_simple_suggestions_page(suggestions)
 
 def is_not_found_page(soup, requested_url, final_url, status_code):
     host = urlparse(requested_url).netloc
