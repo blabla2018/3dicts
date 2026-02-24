@@ -1,7 +1,8 @@
 
 import os
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, unquote, quote_plus
 import json
+import html
 import httpx
 from flask import Flask, request, render_template, Response, jsonify
 from bs4 import BeautifulSoup
@@ -65,25 +66,14 @@ def modify_html(soup, base_url):
         absolute_url = urljoin(base_url, href)
         link["href"] = f"/proxy?url={absolute_url}"
 
-    # Process JSON inside <script type="application/json"> to absolute URLs
-    for script in soup.find_all("script", {"type": "application/json"}):
-        try:
-            json_data = json.loads(script.string)  
-            if isinstance(json_data, dict): 
-                for key, value in json_data.items():
-                    if isinstance(value, str) and value.startswith("/"):  
-                        json_data[key] = urljoin(base_url, value)
-                script.string = json.dumps(json_data)  
-        except (json.JSONDecodeError, TypeError):
-            pass  
-
     return str(soup)
 
 def get_dictionary_content_div(soup, url):
     if "ldoceonline.com" in url:
         return soup.find("div", class_="entry_content")
     if "cambridge.org" in url:
-        return soup.find("div", class_="entry")
+        # Cambridge uses different containers for regular entries and idioms.
+        return soup.find("div", class_="entry") or soup.find("div", class_="di-body")
     if "oxfordlearnersdictionaries.com" in url:
         return soup.find(id="entryContent")
     return None
@@ -95,10 +85,7 @@ def render_not_found_page():
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>
-          html, body {
-            margin: 0;
-            height: 100%;
-          }
+          html, body { margin: 0; height: 100%; }
           body {
             display: flex;
             align-items: center;
@@ -111,9 +98,107 @@ def render_not_found_page():
           }
         </style>
       </head>
-      <body>Word not found</body>
+      <body>Not found</body>
     </html>
     """
+
+def build_base_html_doc(source_soup):
+    new_soup = BeautifulSoup("<html><head></head><body></body></html>", "html.parser")
+    if source_soup.title:
+        new_soup.head.append(source_soup.title)
+
+    seen_css = set()
+    for css in source_soup.find_all("link", rel="stylesheet"):
+        href = css.get("href")
+        if not href or href in seen_css:
+            continue
+        seen_css.add(href)
+        new_soup.head.append(css)
+
+    style = new_soup.new_tag("style")
+    style.string = """
+        body {
+            padding: 15px !important;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background-color: #ffffff;
+        }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    """
+    new_soup.head.append(style)
+    return new_soup
+
+def extract_words_from_selector(soup, selector):
+    words = []
+    seen = set()
+    for link in soup.select(selector):
+        word = link.get_text(" ", strip=True)
+        if not word:
+            continue
+        key = word.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        words.append(word)
+    return words
+
+def word_to_slug(word):
+    return "-".join(word.strip().lower().split())
+
+def build_dictionary_url(host, word):
+    slug = word_to_slug(word)
+    if "ldoceonline.com" in host:
+        return f"https://www.ldoceonline.com/dictionary/{slug}"
+    if "oxfordlearnersdictionaries.com" in host:
+        return f"https://www.oxfordlearnersdictionaries.com/definition/english/{slug}"
+    return f"https://dictionary.cambridge.org/dictionary/english/{slug}"
+
+def render_simple_suggestions_page(host, words):
+    items = []
+    for word in words[:15]:
+        url = build_dictionary_url(host, word)
+        item = (
+            f'<li><a href="/proxy?url={html.escape(url, quote=True)}">'
+            f"{html.escape(word)}</a></li>"
+        )
+        items.append(item)
+
+    return (
+        "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<style>body{padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}"
+        "h1{margin:0 0 10px;font-size:20px}ul{margin:0;padding-left:20px}li{margin:6px 0}"
+        "a{color:#007bff;text-decoration:none}a:hover{text-decoration:underline}</style></head>"
+        "<body><h1>Did you mean:</h1><ul>"
+        + "".join(items)
+        + "</ul></body></html>"
+    )
+
+def build_not_found_suggestions_html(redirect_url, soup):
+    host = urlparse(redirect_url).netloc
+    words = []
+
+    if "dictionary.cambridge.org" in host:
+        path = urlparse(redirect_url).path
+        query_word = ""
+        marker = "/english/"
+        if marker in path:
+            query_word = unquote(path.split(marker, 1)[1].split("/", 1)[0]).strip()
+        if query_word:
+            spellcheck_url = f"https://dictionary.cambridge.org/spellcheck/english/?q={quote_plus(query_word)}"
+            spellcheck_response = fetch_url(spellcheck_url, headers=REQUEST_HEADERS, follow_redirects=True)
+            spellcheck_soup = BeautifulSoup(spellcheck_response.text, "html.parser")
+            words = extract_words_from_selector(spellcheck_soup, "div.hfl-s.lt2b ul li a")
+    elif "www.ldoceonline.com" in host:
+        words = extract_words_from_selector(soup, "ul.didyoumean li a")
+    elif "www.oxfordlearnersdictionaries.com" in host:
+        words = extract_words_from_selector(soup, "ul.result-list li a")
+
+    if not words:
+        return None
+    return render_simple_suggestions_page(host, words)
 
 def is_not_found_page(soup, requested_url, final_url, status_code):
     host = urlparse(requested_url).netloc
@@ -169,36 +254,11 @@ def clean_html(soup, url):
             btn["class"] = ["c_aud", "local-audio-btn"]
 
     # Create a new HTML document
-    new_soup = BeautifulSoup("<html><head></head><body></body></html>", "html.parser")
+    new_soup = build_base_html_doc(soup)
 
-    # Transfer title and CSS (if present)
-    if soup.title:
-        new_soup.head.append(soup.title)
-
-    # Keep source dictionary styles so entries render correctly.
-    # This preserves visual structure while scripts stay stripped for speed.
-    seen_css = set()
-    for css in soup.find_all("link", rel="stylesheet"):
-        href = css.get("href")
-        if not href or href in seen_css:
-            continue
-        seen_css.add(href)
-        new_soup.head.append(css)
-
-    # Add custom styles for better readability (padding)
+    # Add custom styles for entry pages.
     style = new_soup.new_tag("style")
     style.string = """
-        body { 
-            padding: 15px !important; 
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #2c3e50;
-            background-color: #ffffff;
-        }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        /* Clean up common dictionary clutter */
         .ad, .advertisement, .banner { display: none !important; }
         iframe { display: none !important; }
         .local-audio-btn {
@@ -333,8 +393,13 @@ def proxy():
         soup = BeautifulSoup(content, "html.parser")
 
         if is_not_found_page(soup, redirect_url, str(response.url), response.status_code):
-            not_found_html = render_not_found_page()
-            return build_proxy_response(not_found_html, status_code=404)
+            fixed_suggestions_html = build_not_found_suggestions_html(
+                redirect_url,
+                soup,
+            )
+            if fixed_suggestions_html is not None:
+                return build_proxy_response(fixed_suggestions_html, status_code=200)
+            return build_proxy_response(render_not_found_page(), status_code=404)
 
         if response.status_code != 200:
             return Response(f"Error fetching {redirect_url}: Status {response.status_code}", status=502)
