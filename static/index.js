@@ -211,6 +211,17 @@
             return urlParams.get(param);
         };
 
+        window.getOriginalUrlFromProxy = function (proxyUrl, fallbackUrl) {
+            try {
+                const parsed = new URL(proxyUrl, window.location.origin);
+                if (parsed.pathname !== "/proxy") return fallbackUrl || proxyUrl;
+                const original = parsed.searchParams.get("url");
+                return original ? decodeURIComponent(original) : (fallbackUrl || proxyUrl);
+            } catch (_) {
+                return fallbackUrl || proxyUrl;
+            }
+        };
+
         window.closeDropdown = function () {
             const dropdown = document.getElementById("history-dropdown");
             const btn = document.getElementById("history-btn");
@@ -350,6 +361,11 @@
                 if (iframe) {
                     iframe.onload = function () {
                         try {
+                            const currentProxyUrl = iframe.contentWindow.location.href || iframe.src;
+                            if (link) {
+                                link.href = window.getOriginalUrlFromProxy(currentProxyUrl, dict.url);
+                            }
+
                             const doc = iframe.contentWindow.document;
 
                             doc.addEventListener('keydown', function (e) {

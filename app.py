@@ -73,6 +73,15 @@ def get_dictionary_content_div(soup, url):
     if "ldoceonline.com" in url:
         return soup.find("div", class_="entry_content")
     if "cambridge.org" in url:
+        path = urlparse(url).path.lower()
+        if "/topics/" in path:
+            return (
+                soup.select_one("ul.hul-ib.lm-0.lmb-10.htc")
+                or soup.select_one("ul.hul-ib.htc")
+                or soup.find("ul", class_="hul-ib")
+            )
+        if "/thesaurus/" in path:
+            return soup.find("div", class_="thesaurus")
         # Cambridge uses different containers for regular entries and idioms.
         return soup.find("div", class_="entry") or soup.find("div", class_="di-body")
     if "oxfordlearnersdictionaries.com" in url:
@@ -162,7 +171,7 @@ def render_simple_suggestions_page(suggestions):
         "<style>body{padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}"
         "h1{margin:0 0 10px;font-size:20px}ul{margin:0;padding-left:20px}li{margin:6px 0}"
         "a{color:#007bff;text-decoration:none}a:hover{text-decoration:underline}</style></head>"
-        "<body><h1>Did you mean:</h1><ul>"
+        "<body><h4>Did you mean?</h4><ul>"
         + "".join(items)
         + "</ul></body></html>"
     )
@@ -204,7 +213,11 @@ def is_not_found_page(soup, requested_url, final_url, status_code):
     if "ldoceonline.com" in host:
         return "spellcheck" in final_url or content_div is None
     if "dictionary.cambridge.org" in host:
-        return content_div is None
+        path = urlparse(final_url).path.lower()
+        is_dictionary_entry = path.startswith("/dictionary/english/") or path.startswith("/us/dictionary/english/")
+        if is_dictionary_entry:
+            return content_div is None
+        return status_code == 404
     return status_code == 404
 
 def clean_html(soup, url):
