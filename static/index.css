@@ -16,7 +16,7 @@
         /* Search Header */
         .search-container {
             background: white;
-            padding: 10px 15px;
+            padding: 10px 160px 10px 170px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: center;
@@ -24,6 +24,29 @@
             height: 60px;
             z-index: 100;
             position: relative;
+        }
+
+        .app-brand {
+            position: absolute;
+            left: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #0b6bdb;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .app-brand-icon {
+            width: 30px;
+            height: 30px;
+            display: block;
+        }
+
+        .app-brand-text {
+            font-size: 14px;
+            color: #0b6bdb;
         }
 
         .search-form {
@@ -255,6 +278,27 @@
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+
+        @media (max-width: 920px) {
+            .search-container {
+                padding: 10px 110px 10px 110px;
+            }
+
+            .app-brand-text {
+                display: none;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .search-container {
+                padding: 10px 90px 10px 56px;
+            }
+
+            .app-brand-icon {
+                width: 26px;
+                height: 26px;
+            }
         }
 
 
