@@ -336,6 +336,36 @@ def clean_html(soup, url):
         """
         new_soup.body.append(script)
 
+    swipe_script = new_soup.new_tag("script")
+    swipe_script.string = """
+        (function () {
+            let startX = 0;
+            let startY = 0;
+
+            document.addEventListener("touchstart", function (event) {
+                if (!event.touches || event.touches.length !== 1) return;
+                startX = event.touches[0].clientX;
+                startY = event.touches[0].clientY;
+            }, { passive: true });
+
+            document.addEventListener("touchend", function (event) {
+                if (!event.changedTouches || event.changedTouches.length !== 1) return;
+                const endX = event.changedTouches[0].clientX;
+                const endY = event.changedTouches[0].clientY;
+                const dx = endX - startX;
+                const dy = endY - startY;
+                if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+                if (window.parent) {
+                    window.parent.postMessage(
+                        { type: "dict-swipe", direction: dx < 0 ? "left" : "right" },
+                        "*"
+                    );
+                }
+            }, { passive: true });
+        })();
+    """
+    new_soup.body.append(swipe_script)
+
     return new_soup
 
 def get_base_url(url):
