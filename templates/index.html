@@ -16,11 +16,6 @@
         onclick="executeSearch()">Search</button>
 
     <div class="search-container">
-        <a href="/" class="app-brand" aria-label="Dictionary Search Home">
-            <img src="/static/favicon.svg" alt="" class="app-brand-icon">
-            <span class="app-brand-text">Dictionary Search</span>
-        </a>
-
         <form class="search-form" action="/" method="GET">
             <!-- History Button -->
             <button type="button" id="history-btn" class="history-button" title="Search History"
@@ -62,7 +57,7 @@
                 <!-- Icon will be set by JS -->
             </button>
 
-            <button type="button" class="history-button" title="Hotkeys & Help" onclick="toggleHelpModal()">
+            <button type="button" class="history-button help-button" title="Hotkeys & Help" onclick="toggleHelpModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>

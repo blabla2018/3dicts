@@ -128,12 +128,16 @@ def build_base_html_doc(source_soup):
     style = new_soup.new_tag("style")
     style.string = """
         body {
-            padding: 15px !important;
+            padding: 10px !important;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
             color: #2c3e50;
             background-color: #ffffff;
+        }
+        .entry_content, .entry, .di-body, #entryContent, .thesaurus {
+            margin: 0 !important;
+            padding: 0 !important;
         }
         a { color: #007bff; text-decoration: none; }
         a:hover { text-decoration: underline; }
@@ -456,4 +460,6 @@ app.http_client = httpx.Client()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5002))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    host = os.environ.get("HOST", "127.0.0.1")
+    app.run(host=host, port=port, debug=debug)
