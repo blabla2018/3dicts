@@ -128,7 +128,7 @@ def build_base_html_doc(source_soup):
     style = new_soup.new_tag("style")
     style.string = """
         body {
-            padding: 10px !important;
+            padding: 10px 10px 30px 10px !important;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
@@ -264,6 +264,11 @@ def clean_html(soup, url):
             btn.clear()
             btn.string = "Play"
             btn["class"] = ["c_aud", "local-audio-btn"]
+
+    if "oxfordlearnersdictionaries.com" in url:
+        ring_links = content_div.select_one("#ring-links-box")
+        if ring_links:
+            ring_links.decompose()
 
     # Create a new HTML document
     new_soup = build_base_html_doc(soup)
