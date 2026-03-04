@@ -16,7 +16,7 @@
         /* Search Header */
         .search-container {
             background: white;
-            padding: 10px 60px 10px 12px;
+            padding: 10px 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: center;
@@ -33,6 +33,13 @@
             width: 100%;
             align-items: center;
             position: relative;
+            margin: 0 auto;
+        }
+
+        .search-form::after {
+            content: "";
+            width: 38px;
+            flex: 0 0 38px;
         }
 
         .search-input-wrapper {
@@ -43,7 +50,7 @@
         .search-input {
             flex: 1;
             width: 100%;
-            padding: 8px 12px;
+            padding: 8px 40px 8px 12px;
             font-size: 16px;
             border: 2px solid #e1e4e8;
             border-radius: 8px;
@@ -55,28 +62,35 @@
             border-color: #007bff;
         }
 
-        .search-button {
-            padding: 7px 14px;
-            font-size: 14px;
-            background: #0b6bdb;
-            color: #ffffff;
-            border: 1px solid #0959b7;
-            border-radius: 8px;
+        .search-submit-btn {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            padding: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            color: #0b6bdb;
+            border: none;
+            box-shadow: none;
             cursor: pointer;
-            transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
-            font-weight: 600;
-            line-height: 1.2;
-            box-shadow: 0 2px 6px rgba(0, 63, 133, 0.25);
-            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+            transition: background 0.2s;
         }
 
-        .search-button:hover {
-            background: #095dc0;
-            box-shadow: 0 4px 10px rgba(0, 63, 133, 0.35);
+        .search-submit-btn svg {
+            width: 16px;
+            height: 16px;
         }
 
-        .search-button:active {
-            transform: translateY(1px);
+        .search-submit-btn:hover {
+            background: #f0f6ff;
+            box-shadow: none;
         }
 
         /* Audio Button */
@@ -256,11 +270,28 @@
             transform: translateX(-50%);
             pointer-events: auto;
             transition: transform 0.15s ease;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid #0959b7;
+            background: #0b6bdb;
+            color: #ffffff;
+            cursor: pointer;
             box-shadow: 0 8px 20px rgba(8, 56, 112, 0.35);
+            align-items: center;
+            justify-content: center;
         }
 
-        .history-empty,
-        .autocomplete-empty {
+        .search-helper-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .search-helper-btn:hover {
+            background: #095dc0;
+        }
+
+        .history-empty {
             padding: 10px 15px;
             color: #999;
             text-align: center;
@@ -276,33 +307,32 @@
         }
 
         @media (max-width: 900px) {
-            .search-button[type="submit"] {
+            .search-submit-btn {
                 display: none;
             }
 
             .search-container {
-                padding: 10px 56px 10px 10px;
+                padding: 10px 8px;
             }
 
             .search-form {
                 gap: 8px;
                 max-width: none;
-                padding-right: 44px;
+                padding-right: 0;
             }
 
-            .right-controls {
-                right: 8px;
-            }
-
-            .help-button {
+            .search-form::after {
                 display: none;
             }
+
+            .right-controls { display: none; }
 
             .container {
                 display: block;
                 padding: 0;
                 gap: 0;
                 background: #ffffff;
+                touch-action: pan-y;
             }
 
             .dict-panel {

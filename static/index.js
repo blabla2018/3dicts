@@ -175,11 +175,11 @@
             } else if (event.key === 'h') {
                 window.toggleHistory();
             } else if (event.key === 'ArrowDown') {
-                window.navigateHistory(1);
+                window.navigateHistory(1, event);
             } else if (event.key === 'ArrowUp') {
-                window.navigateHistory(-1);
+                window.navigateHistory(-1, event);
             } else if (event.key === 'Enter') {
-                window.selectHistoryItem();
+                window.selectHistoryItem(event);
             } else if (event.key === 'Escape') {
                 // console.log("Escape global");
                 window.closeDropdown();
@@ -205,11 +205,11 @@
         window.toggleAutoPlay = function () {
             isAutoPlayEnabled = !isAutoPlayEnabled;
             localStorage.setItem("autoPlay", isAutoPlayEnabled);
-            updateAutoPlayIcon();
+            window.updateAutoPlayIcon();
         };
 
         window.getQueryParam = function (param) {
-            let urlParams = new URLSearchParams(window.location.search);
+            const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         };
 
@@ -243,18 +243,18 @@
             // Reset selection when opening
             if (dropdown.classList.contains("show")) {
                 historyIndex = -1;
-                updateHistorySelection();
+                window.updateHistorySelection();
             }
         };
 
-        window.navigateHistory = function (direction) {
+        window.navigateHistory = function (direction, event) {
             const dropdown = document.getElementById("history-dropdown");
             if (!dropdown.classList.contains("show")) return;
 
             const items = document.querySelectorAll(".history-item");
             if (items.length === 0) return;
 
-            event.preventDefault(); // Prevent page scroll
+            if (event) event.preventDefault();
 
             historyIndex += direction;
 
@@ -262,10 +262,10 @@
             if (historyIndex < 0) historyIndex = items.length - 1;
             if (historyIndex >= items.length) historyIndex = 0;
 
-            updateHistorySelection();
+            window.updateHistorySelection();
         };
 
-        window.selectHistoryItem = function () {
+        window.selectHistoryItem = function (event) {
             const dropdown = document.getElementById("history-dropdown");
             if (!dropdown.classList.contains("show")) return;
 
@@ -273,7 +273,7 @@
             if (historyIndex >= 0 && historyIndex < items.length) {
                 const link = items[historyIndex].querySelector("a");
                 if (link) {
-                    event.preventDefault();
+                    if (event) event.preventDefault();
                     window.location.href = link.href;
                 }
             }
@@ -297,7 +297,7 @@
             const btn = document.getElementById("search-helper");
             btn.style.top = (y + 20) + "px";
             btn.style.left = x + "px";
-            btn.style.display = "block";
+            btn.style.display = "flex";
             selectedWord = word;
         };
 
@@ -321,7 +321,7 @@
             if (!src) return;
 
             currentAudioUrl = src;
-            if (isAutoPlayEnabled) {
+            if (isAutoPlayEnabled && !window.isMobileLayout()) {
                 window.playAudio();
             }
         };
@@ -375,15 +375,20 @@
 
             let touchStartX = 0;
             let touchStartY = 0;
+            let touchFromEdge = false;
+            const EDGE_GUARD_PX = 24;
 
             container.addEventListener("touchstart", function (event) {
-                if (!event.touches || event.touches.length !== 1) return;
+                if (!window.isMobileLayout() || !event.touches || event.touches.length !== 1) return;
                 touchStartX = event.touches[0].clientX;
                 touchStartY = event.touches[0].clientY;
+                const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+                touchFromEdge = touchStartX <= EDGE_GUARD_PX || touchStartX >= (viewportWidth - EDGE_GUARD_PX);
             }, { passive: true });
 
             container.addEventListener("touchend", function (event) {
                 if (!window.isMobileLayout() || !event.changedTouches || event.changedTouches.length !== 1) return;
+                if (touchFromEdge) return;
                 const endX = event.changedTouches[0].clientX;
                 const endY = event.changedTouches[0].clientY;
                 const dx = endX - touchStartX;
@@ -406,9 +411,9 @@
             currentAudioUrl = null;
             const slug = word.trim().replace(/\s+/g, '-');
             const dictionaries = [
-                { id: "longman", name: "Longman", url: `https://www.ldoceonline.com/dictionary/${slug}` },
-                { id: "cambridge", name: "Cambridge", url: `https://dictionary.cambridge.org/dictionary/english/${slug}` },
-                { id: "oxford", name: "Oxford", url: `https://www.oxfordlearnersdictionaries.com/definition/english/${slug}` }
+                { id: "longman", url: `https://www.ldoceonline.com/dictionary/${slug}` },
+                { id: "cambridge", url: `https://dictionary.cambridge.org/dictionary/english/${slug}` },
+                { id: "oxford", url: `https://www.oxfordlearnersdictionaries.com/definition/english/${slug}` }
             ];
 
             dictionaries.forEach(dict => {
@@ -447,7 +452,7 @@
                                 }, 10);
                             });
 
-                            doc.addEventListener('mousedown', function (e) {
+                            doc.addEventListener('mousedown', function () {
                                 window.hideSearchHelper();
                             });
 
@@ -468,18 +473,18 @@
         };
 
         window.onload = function () {
-            updateAutoPlayIcon();
+            window.updateAutoPlayIcon();
             window.setupMobileSwipe();
             window.setMobileDictionary(mobileDictionaryIndex);
             window.addEventListener("resize", function () {
                 window.setMobileDictionary(mobileDictionaryIndex);
             });
 
-            let word = getQueryParam("word");
+            let word = window.getQueryParam("word");
             if (word) {
                 word = word.trim().toLowerCase();
                 document.getElementById("word-input").value = word;
-                loadDictionaries(word);
+                window.loadDictionaries(word);
             }
 
             // Add input event listener for autocomplete

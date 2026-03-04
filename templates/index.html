@@ -12,8 +12,13 @@
 
 <body>
     <!-- Floating Search Helper -->
-    <button id="search-helper" class="search-button search-helper-btn" type="button"
-        onclick="executeSearch()">Search</button>
+    <button id="search-helper" class="search-helper-btn" type="button" onclick="executeSearch()" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+        </svg>
+    </button>
 
     <div class="search-container">
         <form class="search-form" action="/" method="GET">
@@ -46,8 +51,14 @@
                         {% endif %}
                     </ul>
                 </div>
+                <button type="submit" class="search-submit-btn" aria-label="Search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+                    </svg>
+                </button>
             </div>
-            <button type="submit" class="search-button">Search</button>
         </form>
 
         <!-- Right Controls (Auto-Play + Help) -->

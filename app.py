@@ -345,15 +345,20 @@ def clean_html(soup, url):
         (function () {
             let startX = 0;
             let startY = 0;
+            let touchFromEdge = false;
+            const EDGE_GUARD_PX = 24;
 
             document.addEventListener("touchstart", function (event) {
                 if (!event.touches || event.touches.length !== 1) return;
                 startX = event.touches[0].clientX;
                 startY = event.touches[0].clientY;
+                const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+                touchFromEdge = startX <= EDGE_GUARD_PX || startX >= (viewportWidth - EDGE_GUARD_PX);
             }, { passive: true });
 
             document.addEventListener("touchend", function (event) {
                 if (!event.changedTouches || event.changedTouches.length !== 1) return;
+                if (touchFromEdge) return;
                 const endX = event.changedTouches[0].clientX;
                 const endY = event.changedTouches[0].clientY;
                 const dx = endX - startX;
