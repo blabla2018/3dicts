@@ -322,7 +322,7 @@
         };
 
         window.updateMobileSearchDock = function () {
-            if (!window.isMobileLayout()) {
+            if (!window.isMobileLayout() || window.isStandaloneApp()) {
                 document.documentElement.style.setProperty("--mobile-keyboard-offset", "0px");
                 return;
             }
@@ -507,6 +507,14 @@
                     if (isProgrammaticFocus) return;
                     window.showAutocomplete([], wordInput.value.trim());
                 });
+
+                wordInput.addEventListener('touchend', function () {
+                    try {
+                        wordInput.focus({ preventScroll: true });
+                    } catch (_) {
+                        wordInput.focus();
+                    }
+                }, { passive: true });
 
                 wordInput.addEventListener('input', function (event) {
                     const query = event.target.value.trim();

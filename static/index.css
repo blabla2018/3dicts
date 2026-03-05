@@ -304,10 +304,6 @@
         }
 
         @media (max-width: 900px) {
-            body {
-                overflow: hidden;
-            }
-
             .search-container {
                 position: fixed;
                 left: 0;
