@@ -13,6 +13,9 @@
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/index.css">
+    <script>
+        window.SEARCH_HISTORY = {{ history|tojson }};
+    </script>
     <script src="/static/index.js" defer></script>
 </head>
 
@@ -28,35 +31,11 @@
 
     <div class="search-container">
         <form class="search-form" action="/" method="GET">
-            <!-- History Button -->
-            <button type="button" id="history-btn" class="history-button" title="Search History"
-                onclick="toggleHistory()">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
-                </svg>
-            </button>
-
             <div class="search-input-wrapper">
                 <input type="text" id="word-input" name="word" class="search-input"
                     placeholder="Type a word or phrase..." required autocomplete="off">
                 <!-- Autocomplete Dropdown -->
                 <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
-                <!-- History Dropdown -->
-                <div id="history-dropdown" class="history-dropdown">
-                    <ul class="history-list">
-                        {% for item in history %}
-                        <li class="history-item">
-                            <a href="/?word={{ item }}">
-                                {{ item }}
-                            </a>
-                        </li>
-                        {% endfor %}
-                        {% if not history %}
-                        <li class="history-empty">No history yet</li>
-                        {% endif %}
-                    </ul>
-                </div>
                 <button type="submit" class="search-submit-btn" aria-label="Search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
@@ -167,10 +146,6 @@
                 <span class="kbd">Space</span>
             </div>
 
-            <div class="key-row">
-                <span>Toggle History</span>
-                <span class="kbd">h</span>
-            </div>
         </div>
     </div>
 </body>

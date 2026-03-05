@@ -127,6 +127,10 @@ def build_base_html_doc(source_soup):
 
     style = new_soup.new_tag("style")
     style.string = """
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
         body {
             padding: 10px 10px 30px 10px !important;
             box-sizing: border-box;
@@ -134,6 +138,10 @@ def build_base_html_doc(source_soup):
             line-height: 1.6;
             color: #2c3e50;
             background-color: #ffffff;
+        }
+        img {
+            max-width: 100% !important;
+            height: auto !important;
         }
         .entry_content, .entry, .di-body, #entryContent, .thesaurus {
             margin: 0 !important;

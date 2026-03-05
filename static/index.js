@@ -1,10 +1,11 @@
         let isAutoPlayEnabled = localStorage.getItem("autoPlay") !== "false"; // Default to true if not set
-        let historyIndex = -1; // Track selected history item
         let autocompleteIndex = -1; // Track selected autocomplete item
         let autocompleteTimeout = null; // For debouncing
         let currentAudioUrl = null;
+        let isProgrammaticFocus = false;
         let mobileDictionaryIndex = 0;
         const mobileDictionaryIds = ["longman", "cambridge", "oxford"];
+        const searchHistory = Array.isArray(window.SEARCH_HISTORY) ? window.SEARCH_HISTORY : [];
 
         const ICON_ON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
         const ICON_OFF = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-3.04-7.86-7.11-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
@@ -12,7 +13,7 @@
         // Autocomplete functions
         window.fetchAutocomplete = async function (query) {
             if (!query || query.length < 2) {
-                window.hideAutocomplete();
+                window.showAutocomplete([], query);
                 return;
             }
 
@@ -20,33 +21,73 @@
                 const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
                 if (response.ok) {
                     const suggestions = await response.json();
-                    window.showAutocomplete(suggestions);
+                    window.showAutocomplete(suggestions, query);
+                } else {
+                    window.showAutocomplete([], query);
                 }
             } catch (error) {
                 console.error('Autocomplete error:', error);
+                window.showAutocomplete([], query);
             }
         };
 
-        window.showAutocomplete = function (suggestions) {
+        window.showAutocomplete = function (suggestions, query = "") {
             const dropdown = document.getElementById('autocomplete-dropdown');
             if (!dropdown) return;
 
             dropdown.innerHTML = '';
             autocompleteIndex = -1;
 
-            if (suggestions.length === 0) {
-                dropdown.classList.remove('show');
-                return;
-            }
+            const normalizedQuery = query.trim().toLowerCase();
+            const normalizedSuggestions = suggestions
+                .map((w) => (w || "").trim())
+                .filter((w) => w.length > 0);
 
-            suggestions.forEach((word, index) => {
+            const uniqueSuggestions = [];
+            const seen = new Set();
+            normalizedSuggestions.forEach((w) => {
+                const key = w.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                uniqueSuggestions.push(w);
+            });
+
+            const historyItems = searchHistory
+                .map((w) => (w || "").trim())
+                .filter((w) => w.length > 0)
+                .filter((w) => !seen.has(w.toLowerCase()))
+                .slice(0, 10);
+
+            const addSection = (title) => {
+                const section = document.createElement('div');
+                section.className = 'autocomplete-section';
+                section.textContent = title;
+                dropdown.appendChild(section);
+            };
+
+            const addItem = (word) => {
                 const item = document.createElement('div');
                 item.className = 'autocomplete-item';
                 item.textContent = word;
-                item.setAttribute('data-index', index);
+                item.setAttribute('data-index', dropdown.querySelectorAll('.autocomplete-item').length);
                 item.onclick = () => window.selectAutocomplete(word);
                 dropdown.appendChild(item);
-            });
+            };
+
+            if (uniqueSuggestions.length > 0) {
+                addSection('Suggestions');
+                uniqueSuggestions.forEach(addItem);
+            }
+
+            if (historyItems.length > 0) {
+                addSection('Recent');
+                historyItems.forEach(addItem);
+            }
+
+            if (dropdown.querySelectorAll('.autocomplete-item').length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
 
             dropdown.classList.add('show');
         };
@@ -172,14 +213,6 @@
             } else if (event.key === ' ' || event.code === 'Space') {
                 event.preventDefault();
                 window.playAudio();
-            } else if (event.key === 'h') {
-                window.toggleHistory();
-            } else if (event.key === 'ArrowDown') {
-                window.navigateHistory(1, event);
-            } else if (event.key === 'ArrowUp') {
-                window.navigateHistory(-1, event);
-            } else if (event.key === 'Enter') {
-                window.selectHistoryItem(event);
             } else if (event.key === 'Escape') {
                 // console.log("Escape global");
                 window.closeDropdown();
@@ -225,69 +258,7 @@
         };
 
         window.closeDropdown = function () {
-            const dropdown = document.getElementById("history-dropdown");
-            const btn = document.getElementById("history-btn");
-            if (dropdown && dropdown.classList.contains("show")) {
-                dropdown.classList.remove("show");
-                btn.classList.remove("active");
-            }
             window.hideSearchHelper();
-        };
-
-        window.toggleHistory = function () {
-            const dropdown = document.getElementById("history-dropdown");
-            const btn = document.getElementById("history-btn");
-            dropdown.classList.toggle("show");
-            btn.classList.toggle("active");
-
-            // Reset selection when opening
-            if (dropdown.classList.contains("show")) {
-                historyIndex = -1;
-                window.updateHistorySelection();
-            }
-        };
-
-        window.navigateHistory = function (direction, event) {
-            const dropdown = document.getElementById("history-dropdown");
-            if (!dropdown.classList.contains("show")) return;
-
-            const items = document.querySelectorAll(".history-item");
-            if (items.length === 0) return;
-
-            if (event) event.preventDefault();
-
-            historyIndex += direction;
-
-            // Wrap around
-            if (historyIndex < 0) historyIndex = items.length - 1;
-            if (historyIndex >= items.length) historyIndex = 0;
-
-            window.updateHistorySelection();
-        };
-
-        window.selectHistoryItem = function (event) {
-            const dropdown = document.getElementById("history-dropdown");
-            if (!dropdown.classList.contains("show")) return;
-
-            const items = document.querySelectorAll(".history-item");
-            if (historyIndex >= 0 && historyIndex < items.length) {
-                const link = items[historyIndex].querySelector("a");
-                if (link) {
-                    if (event) event.preventDefault();
-                    window.location.href = link.href;
-                }
-            }
-        };
-
-        window.updateHistorySelection = function () {
-            const items = document.querySelectorAll(".history-item");
-            items.forEach((item, index) => {
-                if (index === historyIndex) {
-                    item.classList.add("selected");
-                } else {
-                    item.classList.remove("selected");
-                }
-            });
         };
 
         // Search Helper Logic
@@ -480,8 +451,9 @@
                 window.setMobileDictionary(mobileDictionaryIndex);
             });
 
-            let word = window.getQueryParam("word");
-            if (word) {
+            const initialWord = window.getQueryParam("word");
+            if (initialWord) {
+                let word = initialWord;
                 word = word.trim().toLowerCase();
                 document.getElementById("word-input").value = word;
                 window.loadDictionaries(word);
@@ -490,6 +462,26 @@
             // Add input event listener for autocomplete
             const wordInput = document.getElementById("word-input");
             if (wordInput) {
+                const shouldAutoFocus = !initialWord && !wordInput.value.trim();
+                if (shouldAutoFocus) {
+                    isProgrammaticFocus = true;
+                    setTimeout(() => {
+                        try {
+                            wordInput.focus({ preventScroll: true });
+                        } catch (_) {
+                            wordInput.focus();
+                        }
+                        setTimeout(() => {
+                            isProgrammaticFocus = false;
+                        }, 0);
+                    }, 0);
+                }
+
+                wordInput.addEventListener('focus', function () {
+                    if (isProgrammaticFocus) return;
+                    window.showAutocomplete([], wordInput.value.trim());
+                });
+
                 wordInput.addEventListener('input', function (event) {
                     const query = event.target.value.trim();
 
@@ -514,19 +506,11 @@
             document.addEventListener('keydown', window.handleGlobalKeydown);
 
             document.addEventListener('click', function (event) {
-                const dropdown = document.getElementById("history-dropdown");
-                const btn = document.getElementById("history-btn");
                 const modal = document.getElementById("help-modal");
                 const autocompleteDropdown = document.getElementById("autocomplete-dropdown");
 
                 if (!event.target.closest("#search-helper")) {
                     window.hideSearchHelper();
-                }
-
-                if (dropdown && !dropdown.contains(event.target) && !btn.contains(event.target)) {
-                    if (dropdown.classList.contains("show")) {
-                        window.closeDropdown();
-                    }
                 }
 
                 // Close autocomplete if clicking outside

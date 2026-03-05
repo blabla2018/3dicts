@@ -36,12 +36,6 @@
             margin: 0 auto;
         }
 
-        .search-form::after {
-            content: "";
-            width: 35px;
-            flex: 0 0 35px;
-        }
-
         .search-input-wrapper {
             position: relative;
             flex: 1;
@@ -128,7 +122,6 @@
         }
 
         /* Shared Dropdown */
-        .history-dropdown,
         .autocomplete-dropdown {
             position: absolute;
             top: 100%;
@@ -149,7 +142,6 @@
             pointer-events: none;
         }
 
-        .history-dropdown.show,
         .autocomplete-dropdown.show {
             display: block;
             opacity: 1;
@@ -157,13 +149,6 @@
             pointer-events: auto;
         }
 
-        .history-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
-        .history-item a,
         .autocomplete-item {
             display: block;
             padding: 10px 15px;
@@ -175,13 +160,26 @@
             cursor: pointer;
         }
 
-        .history-item.selected a,
+        .autocomplete-section {
+            padding: 8px 15px 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #6b7280;
+            text-transform: uppercase;
+            border-top: 1px solid #eef2f7;
+            background: #ffffff;
+        }
+
+        .autocomplete-section:first-child {
+            border-top: none;
+        }
+
         .autocomplete-item.selected {
             background: #e3f2fd;
             color: #007bff;
         }
 
-        .history-item a:hover,
         .autocomplete-item:hover {
             background: #f5f7fa;
             color: #007bff;
@@ -291,12 +289,6 @@
             background: #095dc0;
         }
 
-        .history-empty {
-            padding: 10px 15px;
-            color: #999;
-            text-align: center;
-        }
-
         /* Right Controls */
         .right-controls {
             position: absolute;
@@ -315,10 +307,6 @@
                 gap: 8px;
                 max-width: none;
                 padding-right: 0;
-            }
-
-            .search-form::after {
-                display: none;
             }
 
             .right-controls { display: none; }
