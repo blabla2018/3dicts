@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="3 Books Search icon">
   <rect x="0" y="0" width="64" height="64" rx="14" ry="14" fill="#0b6bdb" />
+
+  <!-- 3 book spines -->
   <rect x="15" y="14" width="8" height="36" rx="2" fill="#ffffff" />
   <rect x="26" y="12" width="9" height="38" rx="2" fill="#dbeafe" />
   <rect x="38" y="15" width="8" height="35" rx="2" fill="#93c5fd" />
+
+  <!-- magnifier -->
   <circle cx="43" cy="43" r="8" fill="none" stroke="#ffffff" stroke-width="3" />
   <line x1="48.8" y1="48.8" x2="55" y2="55" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
 </svg>
