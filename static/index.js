@@ -317,6 +317,26 @@
             return window.matchMedia("(max-width: 900px)").matches;
         };
 
+        window.isStandaloneApp = function () {
+            return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+        };
+
+        window.updateMobileSearchDock = function () {
+            if (!window.isMobileLayout()) {
+                document.documentElement.style.setProperty("--mobile-keyboard-offset", "0px");
+                return;
+            }
+
+            const vv = window.visualViewport;
+            if (!vv) {
+                document.documentElement.style.setProperty("--mobile-keyboard-offset", "0px");
+                return;
+            }
+
+            const keyboardOverlap = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+            document.documentElement.style.setProperty("--mobile-keyboard-offset", `${Math.round(keyboardOverlap)}px`);
+        };
+
         window.setMobileDictionary = function (index) {
             if (!window.isMobileLayout()) return;
 
@@ -447,9 +467,15 @@
             window.updateAutoPlayIcon();
             window.setupMobileSwipe();
             window.setMobileDictionary(mobileDictionaryIndex);
+            window.updateMobileSearchDock();
             window.addEventListener("resize", function () {
                 window.setMobileDictionary(mobileDictionaryIndex);
+                window.updateMobileSearchDock();
             });
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener("resize", window.updateMobileSearchDock);
+                window.visualViewport.addEventListener("scroll", window.updateMobileSearchDock);
+            }
 
             const initialWord = window.getQueryParam("word");
             if (initialWord) {
@@ -462,7 +488,7 @@
             // Add input event listener for autocomplete
             const wordInput = document.getElementById("word-input");
             if (wordInput) {
-                const shouldAutoFocus = !initialWord && !wordInput.value.trim();
+                const shouldAutoFocus = !initialWord && !wordInput.value.trim() && !window.isMobileLayout() && !window.isStandaloneApp();
                 if (shouldAutoFocus) {
                     isProgrammaticFocus = true;
                     setTimeout(() => {

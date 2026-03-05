@@ -1,4 +1,9 @@
         /* Base styles */
+        :root {
+            --mobile-search-height: 60px;
+            --mobile-keyboard-offset: 0px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -299,8 +304,19 @@
         }
 
         @media (max-width: 900px) {
+            body {
+                overflow: hidden;
+            }
+
             .search-container {
-                padding: 10px 8px;
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: calc(env(safe-area-inset-bottom, 0px) + var(--mobile-keyboard-offset));
+                height: var(--mobile-search-height);
+                padding: 8px 8px;
+                z-index: 1200;
+                box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
             }
 
             .search-form {
@@ -314,20 +330,29 @@
             .container {
                 display: block;
                 padding: 0;
+                padding-bottom: calc(var(--mobile-search-height) + env(safe-area-inset-bottom, 0px));
                 gap: 0;
                 background: #ffffff;
                 touch-action: pan-y;
+                height: 100vh;
             }
 
             .dict-panel {
                 display: none;
                 width: 100%;
-                height: calc(100vh - 60px);
+                height: 100%;
                 border-right: none;
             }
 
             .dict-panel.active {
                 display: flex;
+            }
+
+            .autocomplete-dropdown {
+                top: auto;
+                bottom: calc(100% + 6px);
+                margin-top: 0;
+                max-height: 45vh;
             }
 
             .mobile-dict-indicator {
