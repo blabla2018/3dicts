@@ -206,6 +206,12 @@ def render_simple_suggestions_page(suggestions):
                 const endY = event.changedTouches[0].clientY;
                 const dx = endX - startX;
                 const dy = endY - startY;
+                if (startY < 80 && dy > 50 && dy > Math.abs(dx) * 1.2) {
+                    if (window.parent) {
+                        window.parent.postMessage({ type: "dict-open-search" }, "*");
+                    }
+                    return;
+                }
                 if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
                 if (window.parent) {
                     window.parent.postMessage(

@@ -74,16 +74,22 @@ window.openSearchOverlay = function (options = {}) {
         wordInput.value = currentSearchWord;
     }
 
-    isProgrammaticFocus = true;
-    setTimeout(() => {
+    const focusInput = () => {
         try {
             wordInput.focus({ preventScroll: true });
         } catch (_) {
             wordInput.focus();
         }
-        isProgrammaticFocus = false;
         window.showAutocomplete([], wordInput.value.trim());
-    }, 0);
+    };
+
+    isProgrammaticFocus = true;
+    focusInput();
+    requestAnimationFrame(() => {
+        focusInput();
+        setTimeout(focusInput, 50);
+        isProgrammaticFocus = false;
+    });
 };
 
 window.closeSearchOverlay = function () {
