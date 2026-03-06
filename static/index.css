@@ -293,6 +293,31 @@
             background: #095dc0;
         }
 
+        .mobile-search-fab {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 54px;
+            height: 54px;
+            border: none;
+            border-radius: 50%;
+            background: #0b6bdb;
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(8, 56, 112, 0.28);
+            align-items: center;
+            justify-content: center;
+            z-index: 1350;
+            touch-action: none;
+            cursor: pointer;
+            opacity: 0;
+        }
+
+        .mobile-search-fab svg {
+            width: 22px;
+            height: 22px;
+        }
+
         /* Right Controls */
         .right-controls {
             position: absolute;
@@ -305,6 +330,10 @@
         @media (max-width: 900px) {
             body.search-overlay-open {
                 overflow: hidden;
+            }
+
+            body.search-overlay-open .mobile-search-fab {
+                display: none;
             }
 
             .search-container {
@@ -333,7 +362,6 @@
                 max-width: none;
                 align-items: stretch;
                 margin: 0;
-                min-height: 0;
                 padding: 0;
                 background: #ffffff;
             }
@@ -341,7 +369,6 @@
             .search-input-wrapper {
                 position: relative;
                 width: 100%;
-                flex: 0 0 auto;
                 padding: calc(env(safe-area-inset-top, 0px) + 8px) var(--mobile-overlay-padding) 10px;
                 background: #ffffff;
                 border-bottom: 1px solid #e6ecf4;
@@ -423,9 +450,15 @@
             .mobile-dict-indicator {
                 display: inline-flex;
             }
+
+            .mobile-search-fab {
+                display: inline-flex;
+            }
+
+            .mobile-search-fab.is-ready {
+                opacity: 1;
+            }
         }
-
-
 
         /* Modal Styles */
         .modal {

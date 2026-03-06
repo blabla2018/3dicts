@@ -13,15 +13,19 @@
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/index.css">
-    <script>
-        window.SEARCH_HISTORY = {{ history|tojson }};
-    </script>
     <script src="/static/index.js" defer></script>
 </head>
 
 <body>
-    <!-- Floating Search Helper -->
     <button id="search-helper" class="search-helper-btn" type="button" onclick="executeSearch()" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+            stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+        </svg>
+    </button>
+
+    <button id="mobile-search-fab" class="mobile-search-fab" type="button" aria-label="Open search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
             stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
@@ -46,12 +50,9 @@
             <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
         </form>
 
-        <!-- Right Controls (Auto-Play + Help) -->
         <div class="right-controls">
             <button type="button" id="audio-toggle-btn" class="audio-button" onclick="toggleAutoPlay()"
-                title="Toggle Auto-Play">
-                <!-- Icon will be set by JS -->
-            </button>
+                title="Toggle Auto-Play"></button>
 
             <button type="button" class="history-button help-button" title="Hotkeys & Help" onclick="toggleHelpModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -63,11 +64,7 @@
             </button>
         </div>
     </div>
-
-
-
     <div class="container">
-        <!-- Longman -->
         <div class="dict-panel">
             <div class="dict-header">
                 <span class="dict-title-group">
@@ -87,7 +84,6 @@
             <iframe id="longman"></iframe>
         </div>
 
-        <!-- Cambridge -->
         <div class="dict-panel">
             <div class="dict-header">
                 <span class="dict-title-group">
@@ -107,7 +103,6 @@
             <iframe id="cambridge"></iframe>
         </div>
 
-        <!-- Oxford -->
         <div class="dict-panel">
             <div class="dict-header">
                 <span class="dict-title-group">
@@ -127,7 +122,6 @@
             <iframe id="oxford"></iframe>
         </div>
     </div>
-
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal">

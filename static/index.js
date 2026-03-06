@@ -6,9 +6,10 @@ let currentSearchWord = "";
 let isProgrammaticFocus = false;
 let mobileDictionaryIndex = 0;
 let currentDictionaryId = "longman";
+let mobileSearchFabMoved = false;
 
 const mobileDictionaryIds = ["longman", "cambridge", "oxford"];
-const searchHistory = Array.isArray(window.SEARCH_HISTORY) ? window.SEARCH_HISTORY : [];
+const SEARCH_HISTORY_KEY = "searchHistory";
 
 const ICON_ON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
 const ICON_OFF = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-3.04-7.86-7.11-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
@@ -38,6 +39,45 @@ window.getOriginalUrlFromProxy = function (proxyUrl, fallbackUrl) {
 
 window.buildSearchUrl = function (word) {
     return `?word=${encodeURIComponent(word)}&dict=${encodeURIComponent(currentDictionaryId)}`;
+};
+
+window.extractHistoryWordFromUrl = function (url) {
+    try {
+        const parsed = new URL(url, window.location.origin);
+        const q = (parsed.searchParams.get("q") || "").trim();
+        if (q) return q;
+
+        const segments = parsed.pathname.split("/").filter(Boolean);
+        const lastSegment = segments[segments.length - 1] || "";
+        if (!lastSegment) return "";
+
+        return decodeURIComponent(lastSegment).replace(/-/g, " ").trim();
+    } catch (_) {
+        return "";
+    }
+};
+
+window.loadSearchHistory = function () {
+    try {
+        const items = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || "[]");
+        if (!Array.isArray(items)) return [];
+        return items
+            .map((word) => (word || "").trim())
+            .filter((word) => word.length > 0)
+            .slice(0, 10);
+    } catch (_) {
+        return [];
+    }
+};
+
+window.saveSearchHistory = function (word) {
+    const normalizedWord = (word || "").trim();
+    if (!normalizedWord) return;
+    const history = window.loadSearchHistory().filter(
+        (item) => item.toLowerCase() !== normalizedWord.toLowerCase()
+    );
+    history.unshift(normalizedWord);
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, 10)));
 };
 
 window.updateAutoPlayIcon = function () {
@@ -94,6 +134,9 @@ window.openSearchOverlay = function (options = {}) {
     };
 
     isProgrammaticFocus = true;
+    if (options.userGesture) {
+        focusInput();
+    }
     setTimeout(focusInput, 0);
     requestAnimationFrame(() => {
         focusInput();
@@ -102,6 +145,110 @@ window.openSearchOverlay = function (options = {}) {
             isProgrammaticFocus = false;
         }, 50);
     });
+};
+
+window.setupMobileSearchFab = function () {
+    const fab = document.getElementById("mobile-search-fab");
+    if (!fab || fab.dataset.bound === "1") return;
+    fab.dataset.bound = "1";
+
+    const storageKey = "mobileSearchFabPosition";
+    const size = 54;
+    const margin = 12;
+    let startPointerX = 0;
+    let startPointerY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+    let pointerId = null;
+
+    const clampFabPosition = (left, top) => {
+        const maxLeft = Math.max(margin, window.innerWidth - size - margin);
+        const maxTop = Math.max(margin, window.innerHeight - size - margin);
+        return {
+            left: Math.min(Math.max(left, margin), maxLeft),
+            top: Math.min(Math.max(top, margin), maxTop)
+        };
+    };
+
+    const applyFabPosition = (left, top, persist = true) => {
+        const pos = clampFabPosition(left, top);
+        fab.style.left = `${pos.left}px`;
+        fab.style.top = `${pos.top}px`;
+        if (persist) {
+            localStorage.setItem(storageKey, JSON.stringify(pos));
+        }
+    };
+
+    const restoreFabPosition = () => {
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+            if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                applyFabPosition(saved.left, saved.top, false);
+                fab.classList.add("is-ready");
+                return;
+            }
+        } catch (_) {}
+        applyFabPosition(window.innerWidth - size - margin, window.innerHeight - size - 20, false);
+        fab.classList.add("is-ready");
+    };
+
+    fab.addEventListener("pointerdown", function (event) {
+        if (!window.isMobileLayout()) return;
+        pointerId = event.pointerId;
+        startPointerX = event.clientX;
+        startPointerY = event.clientY;
+        startLeft = fab.offsetLeft;
+        startTop = fab.offsetTop;
+        mobileSearchFabMoved = false;
+        fab.setPointerCapture(event.pointerId);
+    });
+
+    fab.addEventListener("pointermove", function (event) {
+        if (pointerId !== event.pointerId || !window.isMobileLayout()) return;
+        const dx = event.clientX - startPointerX;
+        const dy = event.clientY - startPointerY;
+        if (!mobileSearchFabMoved && Math.abs(dx) + Math.abs(dy) > 6) {
+            mobileSearchFabMoved = true;
+        }
+        if (!mobileSearchFabMoved) return;
+        applyFabPosition(startLeft + dx, startTop + dy, false);
+    });
+
+    fab.addEventListener("pointerup", function (event) {
+        if (pointerId !== event.pointerId) return;
+        if (fab.hasPointerCapture && fab.hasPointerCapture(event.pointerId)) {
+            fab.releasePointerCapture(event.pointerId);
+        }
+        pointerId = null;
+        if (mobileSearchFabMoved) {
+            applyFabPosition(fab.offsetLeft, fab.offsetTop, true);
+            return;
+        }
+        window.openSearchOverlay({ clear: true, userGesture: true });
+    });
+
+    fab.addEventListener("pointercancel", function (event) {
+        if (pointerId === event.pointerId) {
+            pointerId = null;
+        }
+    });
+
+    fab.addEventListener("click", function (event) {
+        if (!window.isMobileLayout()) return;
+        if (mobileSearchFabMoved) {
+            mobileSearchFabMoved = false;
+            event.preventDefault();
+            return;
+        }
+        window.openSearchOverlay({ clear: true, userGesture: true });
+    });
+
+    window.addEventListener("resize", function () {
+        if (!window.isMobileLayout()) return;
+        applyFabPosition(fab.offsetLeft, fab.offsetTop, false);
+    });
+
+    restoreFabPosition();
 };
 
 window.closeSearchOverlay = function () {
@@ -183,9 +330,7 @@ window.showAutocomplete = function (suggestions) {
         return true;
     });
 
-    const historyItems = searchHistory
-        .map((word) => (word || "").trim())
-        .filter((word) => word.length > 0)
+    const historyItems = window.loadSearchHistory()
         .filter((word) => !seen.has(word.toLowerCase()))
         .slice(0, 10);
 
@@ -261,6 +406,7 @@ window.selectAutocomplete = function (word) {
 
     input.value = word;
     currentSearchWord = word;
+    window.saveSearchHistory(word);
     window.location.search = window.buildSearchUrl(word);
 };
 
@@ -380,6 +526,7 @@ window.showSearchHelper = function (word, x, y) {
 window.executeSearch = function () {
     if (!selectedWord) return;
     currentSearchWord = selectedWord;
+    window.saveSearchHistory(selectedWord);
     window.location.search = window.buildSearchUrl(selectedWord);
 };
 
@@ -502,8 +649,15 @@ window.loadDictionaries = function (word) {
         iframe.onload = function () {
             try {
                 const currentProxyUrl = iframe.contentWindow.location.href || iframe.src;
+                const currentOriginalUrl = window.getOriginalUrlFromProxy(currentProxyUrl, dict.url);
                 if (link) {
-                    link.href = window.getOriginalUrlFromProxy(currentProxyUrl, dict.url);
+                    link.href = currentOriginalUrl;
+                }
+
+                const historyWord = window.extractHistoryWordFromUrl(currentOriginalUrl);
+                if (historyWord) {
+                    currentSearchWord = historyWord;
+                    window.saveSearchHistory(historyWord);
                 }
 
                 const doc = iframe.contentWindow.document;
@@ -550,6 +704,7 @@ window.onload = function () {
     window.updateAutoPlayIcon();
     window.setupMobileSwipe();
     window.setupSearchOverlayGestures();
+    window.setupMobileSearchFab();
     const initialDict = window.getQueryParam("dict");
     if (mobileDictionaryIds.includes(initialDict)) {
         mobileDictionaryIndex = mobileDictionaryIds.indexOf(initialDict);
@@ -571,13 +726,8 @@ window.onload = function () {
     if (initialWord && wordInput) {
         currentSearchWord = initialWord.trim().toLowerCase();
         wordInput.value = currentSearchWord;
+        window.saveSearchHistory(currentSearchWord);
         window.loadDictionaries(currentSearchWord);
-    }
-
-    if (!initialWord && window.isMobileLayout()) {
-        setTimeout(() => {
-            window.openSearchOverlay({ clear: true });
-        }, 0);
     }
 
     if (wordInput) {
@@ -611,6 +761,10 @@ window.onload = function () {
 
         wordInput.addEventListener("blur", function () {
             setTimeout(() => {
+                if (window.isMobileLayout() && window.isSearchOverlayOpen()) {
+                    window.showAutocomplete([]);
+                    return;
+                }
                 window.hideAutocomplete();
             }, 200);
         });
@@ -619,6 +773,7 @@ window.onload = function () {
     if (searchForm && wordInput) {
         searchForm.addEventListener("submit", function () {
             currentSearchWord = wordInput.value.trim();
+            window.saveSearchHistory(currentSearchWord);
             window.syncCurrentDictionary();
         });
     }
@@ -629,17 +784,50 @@ window.onload = function () {
         const modal = document.getElementById("help-modal");
         const dropdown = document.getElementById("autocomplete-dropdown");
         const searchContainer = document.querySelector(".search-container");
+        const wordInput = document.getElementById("word-input");
+        const mobileSearchFab = document.getElementById("mobile-search-fab");
 
         if (!event.target.closest("#search-helper")) {
             window.hideSearchHelper();
         }
 
-        if (dropdown && !dropdown.contains(event.target) && event.target.id !== "word-input") {
+        if (
+            dropdown &&
+            !window.isSearchOverlayOpen() &&
+            !dropdown.contains(event.target) &&
+            event.target.id !== "word-input"
+        ) {
             window.hideAutocomplete();
         }
 
-        if (window.isMobileLayout() && window.isSearchOverlayOpen() && searchContainer && !searchContainer.contains(event.target)) {
+        if (
+            window.isMobileLayout() &&
+            window.isSearchOverlayOpen() &&
+            searchContainer &&
+            !searchContainer.contains(event.target) &&
+            (!mobileSearchFab || !mobileSearchFab.contains(event.target))
+        ) {
             window.closeSearchOverlay();
+        }
+
+        if (
+            window.isMobileLayout() &&
+            window.isSearchOverlayOpen() &&
+            wordInput &&
+            searchContainer &&
+            searchContainer.contains(event.target) &&
+            !event.target.closest(".autocomplete-item") &&
+            !event.target.closest(".autocomplete-section") &&
+            event.target !== wordInput
+        ) {
+            setTimeout(() => {
+                try {
+                    wordInput.focus({ preventScroll: true });
+                } catch (_) {
+                    wordInput.focus();
+                }
+                window.showAutocomplete([]);
+            }, 0);
         }
 
         if (event.target === modal) {

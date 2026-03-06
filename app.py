@@ -1,6 +1,4 @@
-
 import html
-import json
 import os
 from urllib.parse import quote_plus, unquote, urljoin, urlparse
 
@@ -9,7 +7,6 @@ from bs4 import BeautifulSoup
 from flask import Flask, Response, jsonify, render_template, request
 
 app = Flask(__name__)
-HISTORY_FILE = "history.json"
 DEFAULT_TIMEOUT_SECONDS = 4.0
 REQUEST_HEADERS = {
     "User-Agent": (
@@ -25,28 +22,6 @@ HOST_SETTINGS = {
     "www.ldoceonline.com": {"timeout": 4.0},
     "api.datamuse.com": {"timeout": 3.0},
 }
-
-def load_history():
-    if not os.path.exists(HISTORY_FILE):
-        return []
-    try:
-        with open(HISTORY_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
-
-def save_history(word):
-    if not word:
-        return
-    history = load_history()
-    # Remove if exists to move to top
-    if word in history:
-        history.remove(word)
-    history.insert(0, word)
-    # Keep last 10
-    history = history[:10]
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f)
 
 def modify_html(soup, base_url):
     # Process <link> (CSS), <script> (JS), <img> (images) to absolute URLs
@@ -459,11 +434,7 @@ def build_proxy_response(html: str, status_code: int = 200):
 @app.route("/")
 def index():
     word = request.args.get("word", "").strip()
-    if word:
-        save_history(word)
-    
-    history = load_history()
-    return render_template("index.html", word=word, history=history)
+    return render_template("index.html", word=word)
 
 @app.route("/api/autocomplete")
 def autocomplete_api():
