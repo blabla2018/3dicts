@@ -5,6 +5,7 @@ let currentAudioUrl = null;
 let currentSearchWord = "";
 let isProgrammaticFocus = false;
 let mobileDictionaryIndex = 0;
+let currentDictionaryId = "longman";
 
 const mobileDictionaryIds = ["longman", "cambridge", "oxford"];
 const searchHistory = Array.isArray(window.SEARCH_HISTORY) ? window.SEARCH_HISTORY : [];
@@ -358,7 +359,7 @@ window.showSearchHelper = function (word, x, y) {
 window.executeSearch = function () {
     if (!selectedWord) return;
     currentSearchWord = selectedWord;
-    window.location.search = `?word=${encodeURIComponent(selectedWord)}`;
+    window.location.search = `?word=${encodeURIComponent(selectedWord)}&dict=${encodeURIComponent(currentDictionaryId)}`;
 };
 
 window.updateAudioFromCambridgeDoc = function (doc) {
@@ -390,6 +391,14 @@ window.closeHelpModal = function () {
     if (modal) modal.style.display = "none";
 };
 
+window.syncCurrentDictionary = function () {
+    currentDictionaryId = mobileDictionaryIds[mobileDictionaryIndex] || "longman";
+    const dictInput = document.getElementById("dict-input");
+    if (dictInput) {
+        dictInput.value = currentDictionaryId;
+    }
+};
+
 window.setMobileDictionary = function (index) {
     if (!window.isMobileLayout()) return;
 
@@ -401,6 +410,8 @@ window.setMobileDictionary = function (index) {
         if (!panel) return;
         panel.classList.toggle("active", currentIndex === mobileDictionaryIndex);
     });
+
+    window.syncCurrentDictionary();
 };
 
 window.swipeMobileDictionary = function (direction) {
@@ -518,7 +529,12 @@ window.onload = function () {
     window.updateAutoPlayIcon();
     window.setupMobileSwipe();
     window.setupSearchOverlayGestures();
+    const initialDict = window.getQueryParam("dict");
+    if (mobileDictionaryIds.includes(initialDict)) {
+        mobileDictionaryIndex = mobileDictionaryIds.indexOf(initialDict);
+    }
     window.setMobileDictionary(mobileDictionaryIndex);
+    window.syncCurrentDictionary();
 
     window.addEventListener("resize", function () {
         window.setMobileDictionary(mobileDictionaryIndex);
@@ -576,6 +592,7 @@ window.onload = function () {
     if (searchForm && wordInput) {
         searchForm.addEventListener("submit", function () {
             currentSearchWord = wordInput.value.trim();
+            window.syncCurrentDictionary();
         });
     }
 

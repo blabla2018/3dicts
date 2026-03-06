@@ -180,12 +180,42 @@ def render_simple_suggestions_page(suggestions):
 
     return (
         "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-        "<style>body{padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}"
+        "<style>html,body{min-height:100%;touch-action:pan-y}"
+        "body{padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}"
         "h1{margin:0 0 10px;font-size:20px}ul{margin:0;padding-left:20px}li{margin:6px 0}"
         "a{color:#007bff;text-decoration:none}a:hover{text-decoration:underline}</style></head>"
         "<body><h4>Did you mean?</h4><ul>"
         + "".join(items)
-        + "</ul></body></html>"
+        + """</ul><script>
+        (function () {
+            let startX = 0;
+            let startY = 0;
+            let touchFromEdge = false;
+            const EDGE_GUARD_PX = 24;
+            document.addEventListener("touchstart", function (event) {
+                if (!event.touches || event.touches.length !== 1) return;
+                startX = event.touches[0].clientX;
+                startY = event.touches[0].clientY;
+                const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+                touchFromEdge = startX <= EDGE_GUARD_PX || startX >= (viewportWidth - EDGE_GUARD_PX);
+            }, { passive: true });
+            document.addEventListener("touchend", function (event) {
+                if (!event.changedTouches || event.changedTouches.length !== 1) return;
+                if (touchFromEdge) return;
+                const endX = event.changedTouches[0].clientX;
+                const endY = event.changedTouches[0].clientY;
+                const dx = endX - startX;
+                const dy = endY - startY;
+                if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+                if (window.parent) {
+                    window.parent.postMessage(
+                        { type: "dict-swipe", direction: dx < 0 ? "left" : "right" },
+                        "*"
+                    );
+                }
+            }, { passive: true });
+        })();
+        </script></body></html>"""
     )
 
 def build_not_found_suggestions_html(redirect_url, soup):
