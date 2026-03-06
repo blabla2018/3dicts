@@ -359,7 +359,9 @@ def clean_html(soup, url):
             let startX = 0;
             let startY = 0;
             let touchFromEdge = false;
+            let canOpenSearch = false;
             const EDGE_GUARD_PX = 24;
+            const PULL_SEARCH_PX = 72;
 
             document.addEventListener("touchstart", function (event) {
                 if (!event.touches || event.touches.length !== 1) return;
@@ -367,6 +369,7 @@ def clean_html(soup, url):
                 startY = event.touches[0].clientY;
                 const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
                 touchFromEdge = startX <= EDGE_GUARD_PX || startX >= (viewportWidth - EDGE_GUARD_PX);
+                canOpenSearch = (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0) <= 4;
             }, { passive: true });
 
             document.addEventListener("touchend", function (event) {
@@ -376,6 +379,12 @@ def clean_html(soup, url):
                 const endY = event.changedTouches[0].clientY;
                 const dx = endX - startX;
                 const dy = endY - startY;
+                if (canOpenSearch && dy > PULL_SEARCH_PX && Math.abs(dy) > Math.abs(dx) * 1.2) {
+                    if (window.parent) {
+                        window.parent.postMessage({ type: "dict-open-search" }, "*");
+                    }
+                    return;
+                }
                 if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
                 if (window.parent) {
                     window.parent.postMessage(
