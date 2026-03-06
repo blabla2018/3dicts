@@ -36,6 +36,10 @@ window.getOriginalUrlFromProxy = function (proxyUrl, fallbackUrl) {
     }
 };
 
+window.buildSearchUrl = function (word) {
+    return `?word=${encodeURIComponent(word)}&dict=${encodeURIComponent(currentDictionaryId)}`;
+};
+
 window.updateAutoPlayIcon = function () {
     const btn = document.getElementById("audio-toggle-btn");
     if (!btn) return;
@@ -80,15 +84,17 @@ window.openSearchOverlay = function (options = {}) {
         } catch (_) {
             wordInput.focus();
         }
-        window.showAutocomplete([], wordInput.value.trim());
+        window.showAutocomplete([]);
     };
 
     isProgrammaticFocus = true;
-    focusInput();
+    setTimeout(focusInput, 0);
     requestAnimationFrame(() => {
         focusInput();
-        setTimeout(focusInput, 50);
-        isProgrammaticFocus = false;
+        setTimeout(() => {
+            focusInput();
+            isProgrammaticFocus = false;
+        }, 50);
     });
 };
 
@@ -134,25 +140,25 @@ window.setupSearchOverlayGestures = function () {
 
 window.fetchAutocomplete = async function (query) {
     if (!query || query.length < 2) {
-        window.showAutocomplete([], query);
+        window.showAutocomplete([]);
         return;
     }
 
     try {
         const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
         if (!response.ok) {
-            window.showAutocomplete([], query);
+            window.showAutocomplete([]);
             return;
         }
         const suggestions = await response.json();
-        window.showAutocomplete(suggestions, query);
+        window.showAutocomplete(suggestions);
     } catch (error) {
         console.error("Autocomplete error:", error);
-        window.showAutocomplete([], query);
+        window.showAutocomplete([]);
     }
 };
 
-window.showAutocomplete = function (suggestions, query = "") {
+window.showAutocomplete = function (suggestions) {
     const dropdown = document.getElementById("autocomplete-dropdown");
     if (!dropdown) return;
 
@@ -245,13 +251,11 @@ window.navigateAutocomplete = function (direction) {
 
 window.selectAutocomplete = function (word) {
     const input = document.getElementById("word-input");
-    const form = document.querySelector(".search-form");
-    if (!input || !form) return;
+    if (!input) return;
 
     input.value = word;
     currentSearchWord = word;
-    window.hideAutocomplete();
-    form.submit();
+    window.location.search = window.buildSearchUrl(word);
 };
 
 window.handleAutocompleteKeydown = function (event) {
@@ -281,6 +285,9 @@ window.handleAutocompleteKeydown = function (event) {
     }
 
     if (event.key === "Escape") {
+        if (window.isSearchOverlayOpen()) {
+            return false;
+        }
         event.preventDefault();
         window.hideAutocomplete();
         return true;
@@ -297,13 +304,15 @@ window.handleGlobalKeydown = function (event) {
         if (window.handleAutocompleteKeydown(event)) return;
 
         if (event.key === "Escape") {
+            if (window.isSearchOverlayOpen()) {
+                event.preventDefault();
+                window.closeSearchOverlay();
+                window.closeHelpModal();
+                return;
+            }
             window.hideAutocomplete();
             activeElement.blur();
-            if (window.isSearchOverlayOpen()) {
-                window.closeSearchOverlay();
-            } else {
-                window.closeDropdown();
-            }
+            window.closeDropdown();
             window.closeHelpModal();
         }
         return;
@@ -365,7 +374,7 @@ window.showSearchHelper = function (word, x, y) {
 window.executeSearch = function () {
     if (!selectedWord) return;
     currentSearchWord = selectedWord;
-    window.location.search = `?word=${encodeURIComponent(selectedWord)}&dict=${encodeURIComponent(currentDictionaryId)}`;
+    window.location.search = window.buildSearchUrl(selectedWord);
 };
 
 window.updateAudioFromCambridgeDoc = function (doc) {
@@ -575,7 +584,7 @@ window.onload = function () {
 
         wordInput.addEventListener("focus", function () {
             if (isProgrammaticFocus) return;
-            window.showAutocomplete([], wordInput.value.trim());
+            window.showAutocomplete([]);
         });
 
         wordInput.addEventListener("input", function (event) {
