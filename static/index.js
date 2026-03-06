@@ -79,10 +79,16 @@ window.openSearchOverlay = function (options = {}) {
     }
 
     const focusInput = () => {
+        wordInput.setAttribute("autofocus", "autofocus");
+        wordInput.click();
         try {
             wordInput.focus({ preventScroll: true });
         } catch (_) {
             wordInput.focus();
+        }
+        const valueLength = wordInput.value.length;
+        if (typeof wordInput.setSelectionRange === "function") {
+            wordInput.setSelectionRange(valueLength, valueLength);
         }
         window.showAutocomplete([]);
     };
@@ -566,6 +572,12 @@ window.onload = function () {
         currentSearchWord = initialWord.trim().toLowerCase();
         wordInput.value = currentSearchWord;
         window.loadDictionaries(currentSearchWord);
+    }
+
+    if (!initialWord && window.isMobileLayout()) {
+        setTimeout(() => {
+            window.openSearchOverlay({ clear: true });
+        }, 0);
     }
 
     if (wordInput) {
