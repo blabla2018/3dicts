@@ -80,6 +80,14 @@ window.saveSearchHistory = function (word) {
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, 10)));
 };
 
+window.updateSearchClearButton = function () {
+    const wordInput = document.getElementById("word-input");
+    const clearButton = document.getElementById("search-clear-btn");
+    if (!wordInput || !clearButton) return;
+    const shouldShow = window.isMobileLayout() && wordInput.value.trim().length > 0;
+    clearButton.classList.toggle("visible", shouldShow);
+};
+
 window.updateAutoPlayIcon = function () {
     const btn = document.getElementById("audio-toggle-btn");
     if (!btn) return;
@@ -117,6 +125,7 @@ window.openSearchOverlay = function (options = {}) {
     } else {
         wordInput.value = currentSearchWord;
     }
+    window.updateSearchClearButton();
 
     const focusInput = () => {
         wordInput.setAttribute("autofocus", "autofocus");
@@ -261,24 +270,25 @@ window.closeSearchOverlay = function () {
         wordInput.value = currentSearchWord;
         wordInput.blur();
     }
+    window.updateSearchClearButton();
 };
 
 window.setupSearchOverlayGestures = function () {
-    const searchContainer = document.querySelector(".search-container");
-    if (!searchContainer || searchContainer.dataset.touchBound === "1") return;
-    searchContainer.dataset.touchBound = "1";
+    const searchInputWrapper = document.querySelector(".search-input-wrapper");
+    if (!searchInputWrapper || searchInputWrapper.dataset.touchBound === "1") return;
+    searchInputWrapper.dataset.touchBound = "1";
 
     let startX = 0;
     let startY = 0;
 
-    searchContainer.addEventListener("touchstart", function (event) {
+    searchInputWrapper.addEventListener("touchstart", function (event) {
         if (!window.isMobileLayout() || !window.isSearchOverlayOpen()) return;
         if (!event.touches || event.touches.length !== 1) return;
         startX = event.touches[0].clientX;
         startY = event.touches[0].clientY;
     }, { passive: true });
 
-    searchContainer.addEventListener("touchend", function (event) {
+    searchInputWrapper.addEventListener("touchend", function (event) {
         if (!window.isMobileLayout() || !window.isSearchOverlayOpen()) return;
         if (!event.changedTouches || event.changedTouches.length !== 1) return;
         const endX = event.changedTouches[0].clientX;
@@ -407,6 +417,7 @@ window.selectAutocomplete = function (word) {
     input.value = word;
     currentSearchWord = word;
     window.saveSearchHistory(word);
+    window.updateSearchClearButton();
     window.location.search = window.buildSearchUrl(word);
 };
 
@@ -727,6 +738,7 @@ window.onload = function () {
         currentSearchWord = initialWord.trim().toLowerCase();
         wordInput.value = currentSearchWord;
         window.saveSearchHistory(currentSearchWord);
+        window.updateSearchClearButton();
         window.loadDictionaries(currentSearchWord);
     }
 
@@ -746,11 +758,13 @@ window.onload = function () {
 
         wordInput.addEventListener("focus", function () {
             if (isProgrammaticFocus) return;
+            window.updateSearchClearButton();
             window.showAutocomplete([]);
         });
 
         wordInput.addEventListener("input", function (event) {
             const query = event.target.value.trim();
+            window.updateSearchClearButton();
             if (autocompleteTimeout) {
                 clearTimeout(autocompleteTimeout);
             }
@@ -761,8 +775,8 @@ window.onload = function () {
 
         wordInput.addEventListener("blur", function () {
             setTimeout(() => {
+                window.updateSearchClearButton();
                 if (window.isMobileLayout() && window.isSearchOverlayOpen()) {
-                    window.showAutocomplete([]);
                     return;
                 }
                 window.hideAutocomplete();
@@ -774,7 +788,23 @@ window.onload = function () {
         searchForm.addEventListener("submit", function () {
             currentSearchWord = wordInput.value.trim();
             window.saveSearchHistory(currentSearchWord);
+            window.updateSearchClearButton();
             window.syncCurrentDictionary();
+        });
+    }
+
+    const clearButton = document.getElementById("search-clear-btn");
+    if (clearButton && wordInput) {
+        clearButton.addEventListener("click", function () {
+            wordInput.value = "";
+            currentSearchWord = "";
+            window.updateSearchClearButton();
+            try {
+                wordInput.focus({ preventScroll: true });
+            } catch (_) {
+                wordInput.focus();
+            }
+            window.showAutocomplete([]);
         });
     }
 
@@ -814,8 +844,7 @@ window.onload = function () {
             window.isMobileLayout() &&
             window.isSearchOverlayOpen() &&
             wordInput &&
-            searchContainer &&
-            searchContainer.contains(event.target) &&
+            event.target.closest(".search-input-wrapper") &&
             !event.target.closest(".autocomplete-item") &&
             !event.target.closest(".autocomplete-section") &&
             event.target !== wordInput
@@ -830,6 +859,15 @@ window.onload = function () {
             }, 0);
         }
 
+        if (
+            window.isMobileLayout() &&
+            window.isSearchOverlayOpen() &&
+            dropdown &&
+            event.target === dropdown
+        ) {
+            window.closeSearchOverlay();
+        }
+
         if (event.target === modal) {
             window.closeHelpModal();
         }
@@ -842,6 +880,8 @@ window.onload = function () {
             window.openSearchOverlay({ clear: true });
         });
     });
+
+    window.updateSearchClearButton();
 
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/static/sw.js").catch(() => {});

@@ -144,36 +144,26 @@ def extract_suggestions_from_selector(soup, selector, base_url):
         suggestions.append((text, url))
     return suggestions
 
-def render_simple_suggestions_page(suggestions):
-    items = []
-    for text, url in suggestions[:15]:
-        item = (
-            f'<li><a href="/proxy?url={html.escape(url, quote=True)}">'
-            f"{html.escape(text)}</a></li>"
-        )
-        items.append(item)
-
-    return (
-        "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-        "<style>html,body{min-height:100%;touch-action:pan-y}"
-        "body{padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}"
-        "h1{margin:0 0 10px;font-size:20px}ul{margin:0;padding-left:20px}li{margin:6px 0}"
-        "a{color:#007bff;text-decoration:none}a:hover{text-decoration:underline}</style></head>"
-        "<body><h4>Did you mean?</h4><ul>"
-        + "".join(items)
-        + """</ul><script>
+def append_interaction_script(new_soup):
+    script = new_soup.new_tag("script")
+    script.string = """
         (function () {
             let startX = 0;
             let startY = 0;
             let touchFromEdge = false;
+            let canOpenSearch = false;
             const EDGE_GUARD_PX = 24;
+            const PULL_SEARCH_PX = 72;
+
             document.addEventListener("touchstart", function (event) {
                 if (!event.touches || event.touches.length !== 1) return;
                 startX = event.touches[0].clientX;
                 startY = event.touches[0].clientY;
                 const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
                 touchFromEdge = startX <= EDGE_GUARD_PX || startX >= (viewportWidth - EDGE_GUARD_PX);
+                canOpenSearch = (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0) <= 4;
             }, { passive: true });
+
             document.addEventListener("touchend", function (event) {
                 if (!event.changedTouches || event.changedTouches.length !== 1) return;
                 if (touchFromEdge) return;
@@ -181,7 +171,7 @@ def render_simple_suggestions_page(suggestions):
                 const endY = event.changedTouches[0].clientY;
                 const dx = endX - startX;
                 const dy = endY - startY;
-                if (startY < 80 && dy > 50 && dy > Math.abs(dx) * 1.2) {
+                if (canOpenSearch && dy > PULL_SEARCH_PX && Math.abs(dy) > Math.abs(dx) * 1.2) {
                     if (window.parent) {
                         window.parent.postMessage({ type: "dict-open-search" }, "*");
                     }
@@ -196,8 +186,8 @@ def render_simple_suggestions_page(suggestions):
                 }
             }, { passive: true });
         })();
-        </script></body></html>"""
-    )
+    """
+    new_soup.body.append(script)
 
 def build_not_found_suggestions_html(redirect_url, soup):
     host = urlparse(redirect_url).netloc
@@ -225,7 +215,34 @@ def build_not_found_suggestions_html(redirect_url, soup):
 
     if not suggestions:
         return None
-    return render_simple_suggestions_page(suggestions)
+
+    source_soup = BeautifulSoup("<html><head></head><body></body></html>", "html.parser")
+    new_soup = build_base_html_doc(source_soup)
+
+    style = new_soup.new_tag("style")
+    style.string = """
+        html, body { min-height: 100%; touch-action: pan-y; }
+        h4 { margin: 0 0 10px; font-size: 20px; }
+        ul { margin: 0; padding-left: 20px; }
+        li { margin: 6px 0; }
+    """
+    new_soup.head.append(style)
+
+    title = new_soup.new_tag("h4")
+    title.string = "Did you mean?"
+    new_soup.body.append(title)
+
+    suggestions_list = new_soup.new_tag("ul")
+    for text, url in suggestions[:15]:
+        item = new_soup.new_tag("li")
+        link = new_soup.new_tag("a", href=f"/proxy?url={html.escape(url, quote=True)}")
+        link.string = text
+        item.append(link)
+        suggestions_list.append(item)
+    new_soup.body.append(suggestions_list)
+
+    append_interaction_script(new_soup)
+    return str(new_soup)
 
 def is_not_found_page(soup, requested_url, final_url, status_code):
     host = urlparse(requested_url).netloc
@@ -364,49 +381,7 @@ def clean_html(soup, url):
         """
         new_soup.body.append(script)
 
-    swipe_script = new_soup.new_tag("script")
-    swipe_script.string = """
-        (function () {
-            let startX = 0;
-            let startY = 0;
-            let touchFromEdge = false;
-            let canOpenSearch = false;
-            const EDGE_GUARD_PX = 24;
-            const PULL_SEARCH_PX = 72;
-
-            document.addEventListener("touchstart", function (event) {
-                if (!event.touches || event.touches.length !== 1) return;
-                startX = event.touches[0].clientX;
-                startY = event.touches[0].clientY;
-                const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-                touchFromEdge = startX <= EDGE_GUARD_PX || startX >= (viewportWidth - EDGE_GUARD_PX);
-                canOpenSearch = (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0) <= 4;
-            }, { passive: true });
-
-            document.addEventListener("touchend", function (event) {
-                if (!event.changedTouches || event.changedTouches.length !== 1) return;
-                if (touchFromEdge) return;
-                const endX = event.changedTouches[0].clientX;
-                const endY = event.changedTouches[0].clientY;
-                const dx = endX - startX;
-                const dy = endY - startY;
-                if (canOpenSearch && dy > PULL_SEARCH_PX && Math.abs(dy) > Math.abs(dx) * 1.2) {
-                    if (window.parent) {
-                        window.parent.postMessage({ type: "dict-open-search" }, "*");
-                    }
-                    return;
-                }
-                if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-                if (window.parent) {
-                    window.parent.postMessage(
-                        { type: "dict-swipe", direction: dx < 0 ? "left" : "right" },
-                        "*"
-                    );
-                }
-            }, { passive: true });
-        })();
-    """
-    new_soup.body.append(swipe_script)
+    append_interaction_script(new_soup)
 
     return new_soup
 

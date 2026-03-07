@@ -1,6 +1,7 @@
         /* Base styles */
         :root {
             --mobile-overlay-padding: 16px;
+            --search-text-inset: 20px;
         }
 
         * {
@@ -45,10 +46,26 @@
             flex: 1;
         }
 
+        .search-input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: #7b8794;
+            pointer-events: none;
+        }
+
+        .search-input-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+
         .search-input {
             flex: 1;
             width: 100%;
-            padding: 8px 40px 8px 12px;
+            padding: 8px 12px 8px calc(12px + var(--search-text-inset));
             font-size: 16px;
             border: 2px solid #e1e4e8;
             border-radius: 8px;
@@ -60,34 +77,34 @@
             border-color: #007bff;
         }
 
-        .search-submit-btn {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
+        .search-clear-btn {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
             padding: 0;
             border-radius: 50%;
-            display: inline-flex;
+            display: none;
             align-items: center;
             justify-content: center;
             position: absolute;
             right: 4px;
             top: 50%;
             transform: translateY(-50%);
-            background: transparent;
-            color: #0b6bdb;
+            background: #eef2f7;
+            color: #6b7280;
             border: none;
             box-shadow: none;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.2s, opacity 0.2s;
         }
 
-        .search-submit-btn svg {
-            width: 16px;
-            height: 16px;
+        .search-clear-btn svg {
+            width: 12px;
+            height: 12px;
         }
 
-        .search-submit-btn:hover {
-            background: #f0f6ff;
+        .search-clear-btn:hover {
+            background: #e1e7ef;
             box-shadow: none;
         }
 
@@ -155,7 +172,7 @@
 
         .autocomplete-item {
             display: block;
-            padding: 10px 15px;
+            padding: 10px 15px 10px calc(15px + var(--search-text-inset));
             color: #333;
             text-decoration: none;
             border-radius: 0;
@@ -165,7 +182,7 @@
         }
 
         .autocomplete-section {
-            padding: 8px 15px 4px;
+            padding: 8px 15px 4px 15px;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.02em;
@@ -377,13 +394,21 @@
             .search-input {
                 font-size: 17px;
                 line-height: 1.2;
-                padding: 10px 46px 10px 14px;
+                padding: 10px 42px 10px calc(14px + var(--search-text-inset));
                 border-radius: 14px;
                 background: #ffffff;
             }
 
-            .search-submit-btn {
+            .search-input-icon {
+                left: calc(var(--mobile-overlay-padding) + 14px);
+            }
+
+            .search-clear-btn {
                 right: calc(var(--mobile-overlay-padding) + 8px);
+            }
+
+            .search-clear-btn.visible {
+                display: inline-flex;
             }
 
             .right-controls {
@@ -438,12 +463,12 @@
             }
 
             .autocomplete-item {
-                padding: 12px var(--mobile-overlay-padding);
+                padding: 12px var(--mobile-overlay-padding) 12px calc(var(--mobile-overlay-padding) + 14px + var(--search-text-inset));
                 font-size: 16px;
             }
 
             .autocomplete-section {
-                padding: 10px var(--mobile-overlay-padding) 6px;
+                padding: 10px var(--mobile-overlay-padding) 6px calc(var(--mobile-overlay-padding) + 14px);
                 background: #ffffff;
             }
 
