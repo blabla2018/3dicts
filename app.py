@@ -9,19 +9,13 @@ from bs4 import BeautifulSoup
 from flask import Flask, Response, render_template, request
 
 app = Flask(__name__)
-DEFAULT_TIMEOUT_SECONDS = 4.0
+REQUEST_TIMEOUT_SECONDS = 20.0
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/91.0.4472.114 Safari/537.36"
     )
-}
-
-HOST_SETTINGS = {
-    "dictionary.cambridge.org": {"timeout": 8.0},
-    "www.oxfordlearnersdictionaries.com": {"timeout": 4.0},
-    "www.ldoceonline.com": {"timeout": 4.0},
 }
 
 def get_commit_hash():
@@ -286,8 +280,13 @@ def clean_html(soup, url):
     if content_div is None:
         return soup
 
+    is_cambridge = "cambridge.org" in url
+    is_oxford = "oxfordlearnersdictionaries.com" in url
+
     # One pass over tags: strip handlers, drop heavy tags, and convert AMP images.
     for tag in list(content_div.find_all(True)):
+        if tag.name is None or tag.attrs is None:
+            continue
         tag_name = tag.name.lower()
 
         if tag_name in {"script", "noscript", "iframe"}:
@@ -305,24 +304,20 @@ def clean_html(soup, url):
             tag.replace_with(img)
             continue
 
+        if is_cambridge and tag_name == "a" and tag.has_attr("amp-access"):
+            tag.decompose()
+            continue
+
+        if is_cambridge and "c_aud" in (tag.get("class") or []):
+            tag.clear()
+            tag.string = "Play"
+            tag["class"] = ["c_aud", "local-audio-btn"]
+
         for attr in list(tag.attrs):
             if attr.lower().startswith("on"):
                 del tag.attrs[attr]
 
-    if "cambridge.org" in url:
-        # Drop AMP-gated links that are not useful in embedded proxy view.
-        for link in content_div.find_all("a"):
-            if link.has_attr("amp-access"):
-                link.decompose()
-
-        # Cambridge audio buttons depend on icon fonts + inline onclick handlers.
-        # Replace with stable text buttons handled by local script below.
-        for btn in content_div.select(".c_aud"):
-            btn.clear()
-            btn.string = "Play"
-            btn["class"] = ["c_aud", "local-audio-btn"]
-
-    if "oxfordlearnersdictionaries.com" in url:
+    if is_oxford:
         ring_links = content_div.select_one("#ring-links-box")
         if ring_links:
             ring_links.decompose()
@@ -342,7 +337,7 @@ def clean_html(soup, url):
     new_soup.body.append(content_div)
 
     # Add script for Oxford audio and interactions
-    if "oxfordlearnersdictionaries.com" in url:
+    if is_oxford and content_div.select_one(".unbox, .audio_play_button"):
         script = new_soup.new_tag("script")
         script.string = """
             document.querySelectorAll('.unbox').forEach(function(el){
@@ -364,7 +359,7 @@ def clean_html(soup, url):
         """
         new_soup.body.append(script)
 
-    if "cambridge.org" in url:
+    if is_cambridge and content_div.select_one(".local-audio-btn"):
         style = new_soup.new_tag("style")
         style.string = """
             .local-audio-btn {
@@ -415,18 +410,12 @@ def get_base_url(url):
     parsed_url = urlparse(url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-def get_host_settings(url):
-    host = urlparse(url).netloc
-    return HOST_SETTINGS.get(host, {"timeout": DEFAULT_TIMEOUT_SECONDS})
-
 def fetch_url(url, headers=None, follow_redirects=True):
-    settings = get_host_settings(url)
-    timeout = settings["timeout"]
     return app.http_client.get(
         url,
         headers=headers,
         follow_redirects=follow_redirects,
-        timeout=timeout,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
 
 def build_proxy_response(html: str, status_code: int = 200):
