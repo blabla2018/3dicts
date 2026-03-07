@@ -334,22 +334,6 @@ def clean_html(soup, url):
     style.string = """
         .ad, .advertisement, .banner { display: none !important; }
         iframe { display: none !important; }
-        .local-audio-btn {
-            display: inline-block;
-            margin-right: 6px;
-            padding: 2px 8px;
-            border: 1px solid #007bff;
-            border-radius: 999px;
-            color: #007bff;
-            background: #f5faff;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            user-select: none;
-        }
-        .local-audio-btn:hover {
-            background: #e8f2ff;
-        }
     """
     new_soup.head.append(style)
 
@@ -380,6 +364,27 @@ def clean_html(soup, url):
         new_soup.body.append(script)
 
     if "cambridge.org" in url:
+        style = new_soup.new_tag("style")
+        style.string = """
+            .local-audio-btn {
+                display: inline-block;
+                margin-right: 6px;
+                padding: 2px 8px;
+                border: 1px solid #007bff;
+                border-radius: 999px;
+                color: #007bff;
+                background: #f5faff;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                user-select: none;
+            }
+            .local-audio-btn:hover {
+                background: #e8f2ff;
+            }
+        """
+        new_soup.head.append(style)
+
         script = new_soup.new_tag("script")
         script.string = """
             document.querySelectorAll('.local-audio-btn').forEach(function(btn){
@@ -434,6 +439,10 @@ def index():
 @app.route("/help")
 def help_page():
     return render_template("help.html", app_version=get_app_version())
+
+@app.route("/settings")
+def settings_page():
+    return render_template("settings.html", app_version=get_app_version())
 
 @app.route("/api/autocomplete")
 def autocomplete_api():

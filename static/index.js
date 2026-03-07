@@ -1,4 +1,3 @@
-let isAutoPlayEnabled = localStorage.getItem("autoPlay") !== "false";
 let autocompleteIndex = -1;
 let autocompleteTimeout = null;
 let currentAudioUrl = null;
@@ -12,9 +11,8 @@ let mobileSearchFabMoved = false;
 const mobileDictionaryIds = ["longman", "cambridge", "oxford"];
 const SEARCH_HISTORY_KEY = "searchHistory";
 const CURRENT_DICTIONARY_KEY = "currentDictionaryId";
-
-const ICON_ON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
-const ICON_OFF = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-3.04-7.86-7.11-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>`;
+const AUTO_PLAY_KEY = "autoPlay";
+const FONT_SCALE_KEY = "dictionaryFontScale";
 
 window.isMobileLayout = function () {
     return window.matchMedia("(max-width: 900px)").matches;
@@ -41,6 +39,19 @@ window.getOriginalUrlFromProxy = function (proxyUrl, fallbackUrl) {
 
 window.buildSearchUrl = function (word) {
     return `?word=${encodeURIComponent(word)}&dict=${encodeURIComponent(currentDictionaryId)}`;
+};
+
+window.isAutoPlayEnabled = function () {
+    return localStorage.getItem(AUTO_PLAY_KEY) === "true";
+};
+
+window.getDictionaryFontScale = function () {
+    const value = parseFloat(localStorage.getItem(FONT_SCALE_KEY) || "1");
+    if (!Number.isFinite(value)) return 1;
+    const presets = [0.9, 0.95, 1, 1.05, 1.1];
+    return presets.reduce((best, current) => {
+        return Math.abs(current - value) < Math.abs(best - value) ? current : best;
+    }, 1);
 };
 
 window.extractHistoryWordFromUrl = function (url) {
@@ -100,20 +111,6 @@ window.restoreAutocompleteForInput = function (query) {
         return;
     }
     window.showAutocomplete([]);
-};
-
-window.updateAutoPlayIcon = function () {
-    const btn = document.getElementById("audio-toggle-btn");
-    if (!btn) return;
-    btn.style.opacity = isAutoPlayEnabled ? "1" : "0.7";
-    btn.innerHTML = isAutoPlayEnabled ? ICON_ON : ICON_OFF;
-    btn.title = isAutoPlayEnabled ? "Auto-Play: ON (Click to mute)" : "Auto-Play: OFF (Click to enable)";
-};
-
-window.toggleAutoPlay = function () {
-    isAutoPlayEnabled = !isAutoPlayEnabled;
-    localStorage.setItem("autoPlay", isAutoPlayEnabled);
-    window.updateAutoPlayIcon();
 };
 
 window.hideSearchHelper = function () {
@@ -388,7 +385,7 @@ window.showAutocomplete = function (suggestions) {
 
     const info = document.createElement("div");
     info.className = "autocomplete-info";
-    info.innerHTML = `<strong>Info:</strong> <span>${window.APP_VERSION || "v00.00.00+local"}</span> <span>&middot;</span> <a href="${window.HELP_URL || "/help"}" target="_blank" rel="noopener noreferrer">Help</a>`;
+    info.innerHTML = `<strong>Info:</strong> <span>${window.APP_VERSION || "v00.00.00+local"}</span> <span>&middot;</span> <a href="${window.SETTINGS_URL || "/settings"}">Settings</a> <span>&middot;</span> <a href="${window.HELP_URL || "/help"}">Help</a>`;
     dropdown.appendChild(info);
 
     if (!dropdown.querySelector(".autocomplete-item") && !dropdown.querySelector(".autocomplete-info")) {
@@ -569,7 +566,7 @@ window.updateAudioFromCambridgeDoc = function (doc) {
     if (!src) return;
 
     currentAudioUrl = src;
-    if (isAutoPlayEnabled && !window.isMobileLayout()) {
+    if (window.isAutoPlayEnabled() && !window.isMobileLayout()) {
         window.playAudio();
     }
 };
@@ -578,6 +575,26 @@ window.playAudio = function () {
     if (currentAudioUrl) {
         new Audio(currentAudioUrl).play();
     }
+};
+
+window.applyDictionaryScale = function (doc) {
+    if (!doc || !doc.documentElement || !doc.body) return;
+    const fontSize = `${16 * window.getDictionaryFontScale()}px`;
+    doc.documentElement.style.setProperty("font-size", fontSize, "important");
+    doc.body.style.setProperty("font-size", fontSize, "important");
+};
+
+window.applyScaleToLoadedIframes = function () {
+    ["longman", "cambridge", "oxford"].forEach((id) => {
+        const iframe = document.getElementById(id);
+        if (!iframe) return;
+        try {
+            const doc = iframe.contentWindow?.document;
+            if (doc) {
+                window.applyDictionaryScale(doc);
+            }
+        } catch (_) {}
+    });
 };
 
 window.syncCurrentDictionary = function () {
@@ -683,6 +700,7 @@ window.loadDictionaries = function (word) {
                 }
 
                 const doc = iframe.contentWindow.document;
+                window.applyDictionaryScale(doc);
 
                 doc.addEventListener("keydown", function (event) {
                     window.handleGlobalKeydown(event);
@@ -723,7 +741,6 @@ window.loadDictionaries = function (word) {
 };
 
 window.onload = function () {
-    window.updateAutoPlayIcon();
     window.setupMobileSwipe();
     window.setupSearchOverlayGestures();
     window.setupMobileSearchFab();
@@ -742,6 +759,10 @@ window.onload = function () {
         if (!window.isMobileLayout()) {
             document.body.classList.remove("search-overlay-open");
         }
+    });
+
+    window.addEventListener("pageshow", function () {
+        window.applyScaleToLoadedIframes();
     });
 
     const initialWord = window.getQueryParam("word");
