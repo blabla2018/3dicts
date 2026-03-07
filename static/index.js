@@ -321,13 +321,13 @@ window.fetchAutocomplete = async function (query) {
     }
 
     try {
-        const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`https://api.datamuse.com/sug?s=${encodeURIComponent(query)}&max=10`);
         if (!response.ok) {
             window.showAutocomplete([]);
             return;
         }
         const suggestions = await response.json();
-        window.showAutocomplete(suggestions);
+        window.showAutocomplete(suggestions.map((item) => item.word).filter(Boolean));
     } catch (error) {
         console.error("Autocomplete error:", error);
         window.showAutocomplete([]);

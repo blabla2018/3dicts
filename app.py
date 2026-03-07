@@ -6,7 +6,7 @@ from urllib.parse import quote_plus, unquote, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, render_template, request
 
 app = Flask(__name__)
 DEFAULT_TIMEOUT_SECONDS = 4.0
@@ -22,7 +22,6 @@ HOST_SETTINGS = {
     "dictionary.cambridge.org": {"timeout": 8.0},
     "www.oxfordlearnersdictionaries.com": {"timeout": 4.0},
     "www.ldoceonline.com": {"timeout": 4.0},
-    "api.datamuse.com": {"timeout": 3.0},
 }
 
 def get_commit_hash():
@@ -41,6 +40,8 @@ def get_commit_hash():
 
 def get_app_version():
     return f"v{datetime.now():%y.%m.%d}+{get_commit_hash()}"
+
+APP_VERSION = get_app_version()
 
 def modify_html(soup, base_url):
     # Process <link> (CSS), <script> (JS), <img> (images) to absolute URLs
@@ -434,36 +435,15 @@ def build_proxy_response(html: str, status_code: int = 200):
 @app.route("/")
 def index():
     word = request.args.get("word", "").strip()
-    return render_template("index.html", word=word, app_version=get_app_version())
+    return render_template("index.html", word=word, app_version=APP_VERSION)
 
 @app.route("/help")
 def help_page():
-    return render_template("help.html", app_version=get_app_version())
+    return render_template("help.html", app_version=APP_VERSION)
 
 @app.route("/settings")
 def settings_page():
-    return render_template("settings.html", app_version=get_app_version())
-
-@app.route("/api/autocomplete")
-def autocomplete_api():
-    """Autocomplete endpoint using Datamuse API"""
-    query = request.args.get("q", "").strip()
-    
-    if not query or len(query) < 2:
-        return jsonify([])
-    
-    try:
-        # Use Datamuse API for suggestions
-        url = f"https://api.datamuse.com/sug?s={query}&max=10"
-        response = fetch_url(url, headers=REQUEST_HEADERS, follow_redirects=True)
-        if response and response.status_code == 200:
-            results = response.json()
-            suggestions = [item['word'] for item in results]
-            return jsonify(suggestions)
-    except Exception as e:
-        print(f"Autocomplete error: {e}")
-    
-    return jsonify([])
+    return render_template("settings.html", app_version=APP_VERSION)
 
 @app.route("/proxy")
 def proxy():
