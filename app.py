@@ -1,5 +1,7 @@
 import html
 import os
+import subprocess
+from datetime import datetime
 from urllib.parse import quote_plus, unquote, urljoin, urlparse
 
 import httpx
@@ -22,6 +24,23 @@ HOST_SETTINGS = {
     "www.ldoceonline.com": {"timeout": 4.0},
     "api.datamuse.com": {"timeout": 3.0},
 }
+
+def get_commit_hash():
+    for env_name in ("RENDER_GIT_COMMIT", "GIT_COMMIT", "COMMIT_SHA"):
+        value = os.environ.get(env_name, "").strip()
+        if value:
+            return value[:7]
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "local"
+
+def get_app_version():
+    return f"v{datetime.now():%y.%m.%d}+{get_commit_hash()}"
 
 def modify_html(soup, base_url):
     # Process <link> (CSS), <script> (JS), <img> (images) to absolute URLs
@@ -105,6 +124,7 @@ def build_base_html_doc(source_soup):
         html, body {
             max-width: 100%;
             overflow-x: hidden;
+            font-size: 16px !important;
         }
         body {
             padding: 10px 10px 30px 10px !important;
@@ -409,7 +429,11 @@ def build_proxy_response(html: str, status_code: int = 200):
 @app.route("/")
 def index():
     word = request.args.get("word", "").strip()
-    return render_template("index.html", word=word)
+    return render_template("index.html", word=word, app_version=get_app_version())
+
+@app.route("/help")
+def help_page():
+    return render_template("help.html", app_version=get_app_version())
 
 @app.route("/api/autocomplete")
 def autocomplete_api():

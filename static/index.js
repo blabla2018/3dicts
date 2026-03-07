@@ -3,6 +3,7 @@ let autocompleteIndex = -1;
 let autocompleteTimeout = null;
 let currentAudioUrl = null;
 let currentSearchWord = "";
+let currentSearchDraft = "";
 let isProgrammaticFocus = false;
 let mobileDictionaryIndex = 0;
 let currentDictionaryId = "longman";
@@ -88,6 +89,18 @@ window.updateSearchClearButton = function () {
     clearButton.classList.toggle("visible", shouldShow);
 };
 
+window.restoreAutocompleteForInput = function (query) {
+    const normalizedQuery = (query || "").trim();
+    if (autocompleteTimeout) {
+        clearTimeout(autocompleteTimeout);
+    }
+    if (normalizedQuery.length >= 2) {
+        window.fetchAutocomplete(normalizedQuery);
+        return;
+    }
+    window.showAutocomplete([]);
+};
+
 window.updateAutoPlayIcon = function () {
     const btn = document.getElementById("audio-toggle-btn");
     if (!btn) return;
@@ -120,7 +133,9 @@ window.openSearchOverlay = function (options = {}) {
     const clear = options.clear !== false;
     document.body.classList.add("search-overlay-open");
 
-    if (clear) {
+    if (currentSearchDraft) {
+        wordInput.value = currentSearchDraft;
+    } else if (clear) {
         wordInput.value = "";
     } else {
         wordInput.value = currentSearchWord;
@@ -139,7 +154,7 @@ window.openSearchOverlay = function (options = {}) {
         if (typeof wordInput.setSelectionRange === "function") {
             wordInput.setSelectionRange(valueLength, valueLength);
         }
-        window.showAutocomplete([]);
+        window.restoreAutocompleteForInput(wordInput.value);
     };
 
     isProgrammaticFocus = true;
@@ -267,7 +282,7 @@ window.closeSearchOverlay = function () {
     document.body.classList.remove("search-overlay-open");
     window.hideAutocomplete();
     if (wordInput) {
-        wordInput.value = currentSearchWord;
+        wordInput.value = currentSearchDraft || currentSearchWord;
         wordInput.blur();
     }
     window.updateSearchClearButton();
@@ -370,7 +385,12 @@ window.showAutocomplete = function (suggestions) {
         historyItems.forEach(addItem);
     }
 
-    if (dropdown.querySelectorAll(".autocomplete-item").length === 0) {
+    const info = document.createElement("div");
+    info.className = "autocomplete-info";
+    info.innerHTML = `<strong>Info:</strong> <span>${window.APP_VERSION || "v00.00.00+local"}</span> <span>&middot;</span> <a href="${window.HELP_URL || "/help"}" target="_blank" rel="noopener noreferrer">Help</a>`;
+    dropdown.appendChild(info);
+
+    if (!dropdown.querySelector(".autocomplete-item") && !dropdown.querySelector(".autocomplete-info")) {
         dropdown.classList.remove("show");
         return;
     }
@@ -416,6 +436,7 @@ window.selectAutocomplete = function (word) {
 
     input.value = word;
     currentSearchWord = word;
+    currentSearchDraft = "";
     window.saveSearchHistory(word);
     window.updateSearchClearButton();
     window.location.search = window.buildSearchUrl(word);
@@ -470,13 +491,11 @@ window.handleGlobalKeydown = function (event) {
             if (window.isSearchOverlayOpen()) {
                 event.preventDefault();
                 window.closeSearchOverlay();
-                window.closeHelpModal();
                 return;
             }
             window.hideAutocomplete();
             activeElement.blur();
             window.closeDropdown();
-            window.closeHelpModal();
         }
         return;
     }
@@ -519,7 +538,6 @@ window.handleGlobalKeydown = function (event) {
         } else {
             window.closeDropdown();
         }
-        window.closeHelpModal();
     }
 };
 
@@ -537,6 +555,7 @@ window.showSearchHelper = function (word, x, y) {
 window.executeSearch = function () {
     if (!selectedWord) return;
     currentSearchWord = selectedWord;
+    currentSearchDraft = "";
     window.saveSearchHistory(selectedWord);
     window.location.search = window.buildSearchUrl(selectedWord);
 };
@@ -558,16 +577,6 @@ window.playAudio = function () {
     if (currentAudioUrl) {
         new Audio(currentAudioUrl).play();
     }
-};
-
-window.toggleHelpModal = function () {
-    const modal = document.getElementById("help-modal");
-    if (modal) modal.style.display = "flex";
-};
-
-window.closeHelpModal = function () {
-    const modal = document.getElementById("help-modal");
-    if (modal) modal.style.display = "none";
 };
 
 window.syncCurrentDictionary = function () {
@@ -736,6 +745,7 @@ window.onload = function () {
 
     if (initialWord && wordInput) {
         currentSearchWord = initialWord.trim().toLowerCase();
+        currentSearchDraft = "";
         wordInput.value = currentSearchWord;
         window.saveSearchHistory(currentSearchWord);
         window.updateSearchClearButton();
@@ -759,11 +769,13 @@ window.onload = function () {
         wordInput.addEventListener("focus", function () {
             if (isProgrammaticFocus) return;
             window.updateSearchClearButton();
-            window.showAutocomplete([]);
+            currentSearchDraft = wordInput.value.trim();
+            window.restoreAutocompleteForInput(currentSearchDraft);
         });
 
         wordInput.addEventListener("input", function (event) {
             const query = event.target.value.trim();
+            currentSearchDraft = query;
             window.updateSearchClearButton();
             if (autocompleteTimeout) {
                 clearTimeout(autocompleteTimeout);
@@ -787,6 +799,7 @@ window.onload = function () {
     if (searchForm && wordInput) {
         searchForm.addEventListener("submit", function () {
             currentSearchWord = wordInput.value.trim();
+            currentSearchDraft = "";
             window.saveSearchHistory(currentSearchWord);
             window.updateSearchClearButton();
             window.syncCurrentDictionary();
@@ -797,21 +810,20 @@ window.onload = function () {
     if (clearButton && wordInput) {
         clearButton.addEventListener("click", function () {
             wordInput.value = "";
-            currentSearchWord = "";
+            currentSearchDraft = "";
             window.updateSearchClearButton();
             try {
                 wordInput.focus({ preventScroll: true });
             } catch (_) {
                 wordInput.focus();
             }
-            window.showAutocomplete([]);
+            window.restoreAutocompleteForInput("");
         });
     }
 
     document.addEventListener("keydown", window.handleGlobalKeydown);
 
     document.addEventListener("click", function (event) {
-        const modal = document.getElementById("help-modal");
         const dropdown = document.getElementById("autocomplete-dropdown");
         const searchContainer = document.querySelector(".search-container");
         const wordInput = document.getElementById("word-input");
@@ -855,7 +867,7 @@ window.onload = function () {
                 } catch (_) {
                     wordInput.focus();
                 }
-                window.showAutocomplete([]);
+                window.restoreAutocompleteForInput(wordInput.value);
             }, 0);
         }
 
@@ -868,9 +880,6 @@ window.onload = function () {
             window.closeSearchOverlay();
         }
 
-        if (event.target === modal) {
-            window.closeHelpModal();
-        }
     });
 
     document.querySelectorAll(".dict-header").forEach((header) => {

@@ -13,6 +13,10 @@
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/index.css">
+    <script>
+        window.APP_VERSION = {{ app_version|tojson }};
+        window.HELP_URL = "/help";
+    </script>
     <script src="/static/index.js" defer></script>
 </head>
 
@@ -60,15 +64,6 @@
         <div class="right-controls">
             <button type="button" id="audio-toggle-btn" class="audio-button" onclick="toggleAutoPlay()"
                 title="Toggle Auto-Play"></button>
-
-            <button type="button" class="history-button help-button" title="Hotkeys & Help" onclick="toggleHelpModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-            </button>
         </div>
     </div>
     <div class="container">
@@ -130,29 +125,6 @@
         </div>
     </div>
 
-    <!-- Help Modal -->
-    <div id="help-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span>Keyboard Shortcuts</span>
-                <button class="close-modal" onclick="closeHelpModal()">&times;</button>
-            </div>
-
-            <div class="key-row">
-                <span>Focus Search</span>
-                <span class="kbd">/</span>
-            </div>
-            <div class="key-row">
-                <span>Play Audio</span>
-                <span class="kbd">Space</span>
-            </div>
-            <div class="key-row">
-                <span>Prev/Next Dictionary</span>
-                <span class="kbd">← →</span>
-            </div>
-
-        </div>
-    </div>
 </body>
 
 </html>
