@@ -1,20 +1,15 @@
-# Используем официальный образ Python как базовый
-FROM python:3.9-slim-buster
+FROM python:3.12-slim
 
-# Устанавливаем рабочую директорию внутри контейнера
 WORKDIR /app
 
-# Копируем файл requirements.txt в контейнер
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Устанавливаем зависимости из requirements.txt
-RUN pip install -r requirements.txt
-
-# Копируем все остальные файлы из текущей директории в контейнер
 COPY . /app
 
-# Указываем команду для запуска приложения
-CMD ["python", "app.py"]
-
-# Открываем порт 5002 для доступа к приложению
 EXPOSE 5002
+
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5002"]

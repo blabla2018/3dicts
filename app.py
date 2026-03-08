@@ -1,6 +1,5 @@
 import html
 import os
-import subprocess
 from datetime import datetime
 from urllib.parse import quote_plus, unquote, urljoin, urlparse
 
@@ -18,22 +17,11 @@ REQUEST_HEADERS = {
     )
 }
 
-def get_commit_hash():
-    for env_name in ("RENDER_GIT_COMMIT", "GIT_COMMIT", "COMMIT_SHA"):
-        value = os.environ.get(env_name, "").strip()
-        if value:
-            return value[:7]
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-    except Exception:
-        return "local"
-
 def get_app_version():
-    return f"v{datetime.now():%y.%m.%d}+{get_commit_hash()}"
+    explicit_version = os.environ.get("APP_VERSION", "").strip()
+    if explicit_version:
+        return explicit_version
+    return f"v{datetime.now():%y.%m.%d}"
 
 APP_VERSION = get_app_version()
 

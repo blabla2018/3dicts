@@ -385,7 +385,7 @@ window.showAutocomplete = function (suggestions) {
 
     const info = document.createElement("div");
     info.className = "autocomplete-info";
-    info.innerHTML = `<strong>Info:</strong> <span>${window.APP_VERSION || "v00.00.00+local"}</span> <span>&middot;</span> <a href="${window.SETTINGS_URL || "/settings"}">Settings</a> <span>&middot;</span> <a href="${window.HELP_URL || "/help"}">Help</a>`;
+    info.innerHTML = `<strong>Info:</strong> <span>${window.APP_VERSION || "v00.00.00"}</span> <span>&middot;</span> <a href="${window.SETTINGS_URL || "/settings"}">Settings</a> <span>&middot;</span> <a href="${window.HELP_URL || "/help"}">Help</a>`;
     dropdown.appendChild(info);
 
     if (!dropdown.querySelector(".autocomplete-item") && !dropdown.querySelector(".autocomplete-info")) {
