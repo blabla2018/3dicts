@@ -141,8 +141,6 @@ window.openSearchOverlay = function (options = {}) {
     window.updateSearchClearButton();
 
     const focusInput = () => {
-        wordInput.setAttribute("autofocus", "autofocus");
-        wordInput.click();
         try {
             wordInput.focus({ preventScroll: true });
         } catch (_) {
@@ -158,15 +156,13 @@ window.openSearchOverlay = function (options = {}) {
     isProgrammaticFocus = true;
     if (options.userGesture) {
         focusInput();
+        isProgrammaticFocus = false;
+        return;
     }
     setTimeout(focusInput, 0);
-    requestAnimationFrame(() => {
-        focusInput();
-        setTimeout(() => {
-            focusInput();
-            isProgrammaticFocus = false;
-        }, 50);
-    });
+    setTimeout(() => {
+        isProgrammaticFocus = false;
+    }, 0);
 };
 
 window.setupMobileSearchFab = function () {
@@ -579,9 +575,17 @@ window.playAudio = function () {
 
 window.applyDictionaryScale = function (doc) {
     if (!doc || !doc.documentElement || !doc.body) return;
-    const fontSize = `${16 * window.getDictionaryFontScale()}px`;
+    const scale = window.getDictionaryFontScale();
+    const fontSize = `${16 * scale}px`;
     doc.documentElement.style.setProperty("font-size", fontSize, "important");
     doc.body.style.setProperty("font-size", fontSize, "important");
+    if (scale === 1) {
+        doc.body.style.removeProperty("zoom");
+        doc.body.style.removeProperty("width");
+        return;
+    }
+    doc.body.style.setProperty("zoom", String(scale));
+    doc.body.style.setProperty("width", `${100 / scale}%`);
 };
 
 window.applyScaleToLoadedIframes = function () {
@@ -788,6 +792,8 @@ window.onload = function () {
                 } catch (_) {
                     wordInput.focus();
                 }
+                currentSearchDraft = wordInput.value.trim();
+                window.restoreAutocompleteForInput(currentSearchDraft);
                 isProgrammaticFocus = false;
             }, 0);
         }
