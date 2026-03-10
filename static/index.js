@@ -13,6 +13,11 @@ const SEARCH_HISTORY_KEY = "searchHistory";
 const CURRENT_DICTIONARY_KEY = "currentDictionaryId";
 const AUTO_PLAY_KEY = "autoPlay";
 const FONT_SCALE_KEY = "dictionaryFontScale";
+const BASE_DICTIONARY_SCALE = {
+    longman: 1,
+    cambridge: 1,
+    oxford: 1.08
+};
 
 window.isMobileLayout = function () {
     return window.matchMedia("(max-width: 900px)").matches;
@@ -333,6 +338,9 @@ window.fetchAutocomplete = async function (query) {
 window.showAutocomplete = function (suggestions) {
     const dropdown = document.getElementById("autocomplete-dropdown");
     if (!dropdown) return;
+    const input = document.getElementById("word-input");
+    const query = input ? input.value.trim() : "";
+    const hasQuery = query.length >= 2;
 
     dropdown.innerHTML = "";
     autocompleteIndex = -1;
@@ -374,9 +382,11 @@ window.showAutocomplete = function (suggestions) {
         uniqueSuggestions.forEach(addItem);
     }
 
-    if (historyItems.length > 0) {
+    if (!hasQuery || uniqueSuggestions.length === 0) {
+        if (historyItems.length > 0) {
         addSection("Recent");
         historyItems.forEach(addItem);
+        }
     }
 
     const info = document.createElement("div");
@@ -573,9 +583,11 @@ window.playAudio = function () {
     }
 };
 
-window.applyDictionaryScale = function (doc) {
+window.applyDictionaryScale = function (doc, dictId) {
     if (!doc || !doc.documentElement || !doc.body) return;
-    const scale = window.getDictionaryFontScale();
+    const userScale = window.getDictionaryFontScale();
+    const baseScale = BASE_DICTIONARY_SCALE[dictId] || 1;
+    const scale = userScale * baseScale;
     const fontSize = `${16 * scale}px`;
     doc.documentElement.style.setProperty("font-size", fontSize, "important");
     doc.body.style.setProperty("font-size", fontSize, "important");
@@ -595,7 +607,7 @@ window.applyScaleToLoadedIframes = function () {
         try {
             const doc = iframe.contentWindow?.document;
             if (doc) {
-                window.applyDictionaryScale(doc);
+                window.applyDictionaryScale(doc, id);
             }
         } catch (_) {}
     });
@@ -704,7 +716,7 @@ window.loadDictionaries = function (word) {
                 }
 
                 const doc = iframe.contentWindow.document;
-                window.applyDictionaryScale(doc);
+                window.applyDictionaryScale(doc, dict.id);
 
                 doc.addEventListener("keydown", function (event) {
                     window.handleGlobalKeydown(event);
