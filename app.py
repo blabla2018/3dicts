@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from flask import Flask, Response, render_template, request
 
 app = Flask(__name__)
-REQUEST_TIMEOUT_SECONDS = 20.0
+REQUEST_TIMEOUT_SECONDS = 12.0
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
