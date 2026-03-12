@@ -7,86 +7,6 @@
     <title>3dicts Settings</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/info-pages.css">
-    <style>
-        .section-title {
-            margin: 0 0 10px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-        .card {
-            border: 1px solid #e5ebf3;
-            border-radius: 14px;
-            overflow: hidden;
-            background: #fbfdff;
-        }
-        .row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 18px;
-            border-top: 1px solid #e5ebf3;
-        }
-        .row:first-child { border-top: none; }
-        .label { font-size: 15px; font-weight: 600; }
-        .hint { margin-top: 4px; color: #66768a; font-size: 13px; line-height: 1.45; }
-        .switch {
-            position: relative;
-            width: 52px;
-            height: 32px;
-            border: none;
-            border-radius: 999px;
-            background: #d7e0ea;
-            cursor: pointer;
-            transition: background 0.2s;
-            flex: 0 0 auto;
-        }
-        .switch::after {
-            content: "";
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            background: #ffffff;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
-            transition: transform 0.2s;
-        }
-        .switch.active {
-            background: #0b6bdb;
-        }
-        .switch.active::after {
-            transform: translateX(20px);
-        }
-        .scale-control {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            flex: 0 0 auto;
-        }
-        .icon-btn {
-            width: 34px;
-            height: 34px;
-            border: 1px solid #d7e0ea;
-            border-radius: 10px;
-            background: #ffffff;
-            color: #324256;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .value {
-            min-width: 56px;
-            text-align: center;
-            font-size: 14px;
-            font-weight: 700;
-            color: #324256;
-        }
-    </style>
 </head>
 
 <body>
@@ -107,7 +27,8 @@
                 </div>
             </div>
 
-            <div class="section-title" style="margin-top: 20px;">Reading</div>
+            <div class="settings-section">
+                <div class="section-title">Reading</div>
             <div class="card">
                 <div class="row">
                     <div>
@@ -121,61 +42,13 @@
                     </div>
                 </div>
             </div>
+            </div>
 
             <div class="footer-note">Version: {{ app_version }}</div>
         </div>
     </div>
 
-    <script>
-        const AUTO_PLAY_KEY = "autoPlay";
-        const FONT_SCALE_KEY = "dictionaryFontScale";
-        const FONT_SCALE_PRESETS = [0.9, 0.95, 1, 1.05, 1.1];
-
-        function loadScale() {
-            const value = parseFloat(localStorage.getItem(FONT_SCALE_KEY) || "1");
-            if (!Number.isFinite(value)) return 1;
-            const nearest = FONT_SCALE_PRESETS.reduce((best, current) => {
-                return Math.abs(current - value) < Math.abs(best - value) ? current : best;
-            }, FONT_SCALE_PRESETS[2]);
-            return nearest;
-        }
-
-        function saveScale(value) {
-            localStorage.setItem(FONT_SCALE_KEY, String(value));
-        }
-
-        function renderScale(value) {
-            document.getElementById("font-scale-value").textContent = `${Math.round(value * 100)}%`;
-        }
-
-        function renderAutoplay() {
-            const enabled = localStorage.getItem(AUTO_PLAY_KEY) === "true";
-            document.getElementById("autoplay-toggle").classList.toggle("active", enabled);
-        }
-
-        document.getElementById("autoplay-toggle").addEventListener("click", function () {
-            const next = !(localStorage.getItem(AUTO_PLAY_KEY) === "true");
-            localStorage.setItem(AUTO_PLAY_KEY, next ? "true" : "false");
-            renderAutoplay();
-        });
-
-        document.getElementById("font-minus").addEventListener("click", function () {
-            const currentIndex = FONT_SCALE_PRESETS.indexOf(loadScale());
-            const next = FONT_SCALE_PRESETS[Math.max(0, currentIndex - 1)];
-            saveScale(next);
-            renderScale(next);
-        });
-
-        document.getElementById("font-plus").addEventListener("click", function () {
-            const currentIndex = FONT_SCALE_PRESETS.indexOf(loadScale());
-            const next = FONT_SCALE_PRESETS[Math.min(FONT_SCALE_PRESETS.length - 1, currentIndex + 1)];
-            saveScale(next);
-            renderScale(next);
-        });
-
-        renderAutoplay();
-        renderScale(loadScale());
-    </script>
+    <script src="/static/settings.js"></script>
 </body>
 
 </html>
