@@ -22,6 +22,14 @@ window.onload = function () {
 
     window.addEventListener("pageshow", function () {
         window.applyScaleToLoadedIframes();
+        window.updateMobileScaleDebug();
+    });
+
+    window.addEventListener("storage", function (event) {
+        if (event.key === "dictionaryScale" || event.key === "dictionaryCalibrationMode") {
+            window.applyScaleToLoadedIframes();
+            window.updateMobileScaleDebug();
+        }
     });
 
     const initialWord = window.getQueryParam("word");

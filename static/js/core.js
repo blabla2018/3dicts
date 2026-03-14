@@ -13,13 +13,8 @@ const mobileDictionaryIds = ["longman", "cambridge", "oxford"];
 const SEARCH_HISTORY_KEY = "searchHistory";
 const CURRENT_DICTIONARY_KEY = "currentDictionaryId";
 const AUTO_PLAY_KEY = "autoPlay";
-const FONT_SCALE_KEY = "dictionaryFontScale";
-const DICTIONARY_DEBUG_SCALE_KEY = "dictionaryDebugScale";
-const BASE_DICTIONARY_SCALE = {
-    longman: 1,
-    cambridge: 1,
-    oxford: 1.07
-};
+const CALIBRATION_MODE_KEY = "dictionaryCalibrationMode";
+const DICTIONARY_SCALE_KEY = "dictionaryScale";
 
 window.isMobileLayout = function () {
     return window.matchMedia("(max-width: 900px)").matches;
@@ -52,34 +47,30 @@ window.isAutoPlayEnabled = function () {
     return localStorage.getItem(AUTO_PLAY_KEY) === "true";
 };
 
-window.getDictionaryFontScale = function () {
-    const value = parseFloat(localStorage.getItem(FONT_SCALE_KEY) || "1");
-    if (!Number.isFinite(value)) return 1;
-    const presets = [0.9, 0.95, 1, 1.05, 1.1];
-    return presets.reduce((best, current) => {
-        return Math.abs(current - value) < Math.abs(best - value) ? current : best;
-    }, 1);
+window.isCalibrationModeEnabled = function () {
+    return localStorage.getItem(CALIBRATION_MODE_KEY) === "true";
 };
 
-window.getDictionaryDebugScaleMap = function () {
+window.getDictionaryScaleMap = function () {
     try {
-        const value = JSON.parse(localStorage.getItem(DICTIONARY_DEBUG_SCALE_KEY) || "{}");
+        const value = JSON.parse(localStorage.getItem(DICTIONARY_SCALE_KEY) || "{}");
         return value && typeof value === "object" ? value : {};
     } catch (_) {
         return {};
     }
 };
 
-window.getDictionaryDebugScale = function (dictId) {
-    const value = parseFloat(window.getDictionaryDebugScaleMap()[dictId] || "1");
-    return Number.isFinite(value) ? value : 1;
+window.getDictionaryScale = function (dictId) {
+    const stored = parseFloat(window.getDictionaryScaleMap()[dictId] || "");
+    if (Number.isFinite(stored)) return stored;
+    return 1;
 };
 
-window.setDictionaryDebugScale = function (dictId, value) {
+window.setDictionaryScale = function (dictId, value) {
     const safeValue = Math.min(1.25, Math.max(0.85, value));
-    const scales = window.getDictionaryDebugScaleMap();
+    const scales = window.getDictionaryScaleMap();
     scales[dictId] = Number(safeValue.toFixed(2));
-    localStorage.setItem(DICTIONARY_DEBUG_SCALE_KEY, JSON.stringify(scales));
+    localStorage.setItem(DICTIONARY_SCALE_KEY, JSON.stringify(scales));
     return scales[dictId];
 };
 

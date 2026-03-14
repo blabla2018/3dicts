@@ -65,29 +65,38 @@ def get_dictionary_content_div(soup, url):
         return soup.find(id="entryContent")
     return None
 
-def render_not_found_page():
-    return """
+def render_status_page(message, background="#eef6ff", color="#2b4f7a"):
+    safe_message = html.escape(message)
+    return f"""
     <html>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>
-          html, body { margin: 0; height: 100%; }
-          body {
+          html, body {{ margin: 0; height: 100%; }}
+          body {{
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #eef6ff;
+            background: {background};
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #2b4f7a;
+            color: {color};
             font-size: 22px;
             font-weight: 600;
-          }
+            text-align: center;
+            padding: 24px;
+          }}
         </style>
       </head>
-      <body>Not found</body>
+      <body data-fixed-scale="1">{safe_message}</body>
     </html>
     """
+
+def render_not_found_page():
+    return render_status_page("Not found")
+
+def render_fetch_error_page():
+    return render_status_page("Not available", background="#f7f9fc", color="#4b5d73")
 
 def build_base_html_doc(source_soup):
     new_soup = BeautifulSoup("<html><head></head><body></body></html>", "html.parser")
@@ -443,7 +452,7 @@ def proxy():
             return build_proxy_response(render_not_found_page(), status_code=404)
 
         if response.status_code != 200:
-            return Response(f"Error fetching {redirect_url}: Status {response.status_code}", status=502)
+            return build_proxy_response(render_fetch_error_page(), status_code=502)
 
         # Clean the HTML to only show relevant content
         soup = clean_html(soup, redirect_url)
@@ -452,8 +461,8 @@ def proxy():
         fixed_html = modify_html(soup, get_base_url(redirect_url))
 
         return build_proxy_response(fixed_html, status_code=200)
-    except Exception as e:
-        return build_proxy_response(f"Error fetching {redirect_url}: {str(e)}", status_code=500)
+    except Exception:
+        return build_proxy_response(render_fetch_error_page(), status_code=500)
 
 app.http_client = httpx.Client()
 

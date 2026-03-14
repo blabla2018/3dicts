@@ -513,7 +513,7 @@
                 opacity: 1;
             }
 
-            .mobile-scale-debug {
+            body.calibration-mode .mobile-scale-debug {
                 display: inline-flex;
             }
         }

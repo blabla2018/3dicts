@@ -1,19 +1,29 @@
 // Dictionary scaling, navigation, iframe lifecycle, and loading
 window.applyDictionaryScale = function (doc, dictId) {
     if (!doc || !doc.documentElement || !doc.body) return;
-    const userScale = window.getDictionaryFontScale();
-    const baseScale = BASE_DICTIONARY_SCALE[dictId] || 1;
-    const debugScale = window.getDictionaryDebugScale(dictId);
-    const scale = userScale * baseScale * debugScale;
-    const fontSize = `${16 * scale}px`;
-    doc.documentElement.style.setProperty("font-size", fontSize, "important");
-    doc.body.style.setProperty("font-size", fontSize, "important");
-    if (scale === 1) {
+    if (doc.body.dataset.fixedScale === "1") {
+        doc.documentElement.style.removeProperty("font-size");
+        doc.body.style.removeProperty("font-size");
         doc.body.style.removeProperty("zoom");
+        doc.body.style.removeProperty("transform");
+        doc.body.style.removeProperty("transform-origin");
         doc.body.style.removeProperty("width");
         return;
     }
-    doc.body.style.setProperty("zoom", String(scale));
+    const dictionaryScale = window.getDictionaryScale(dictId);
+    const scale = dictionaryScale;
+    const fontSize = `${16 * scale}px`;
+    doc.documentElement.style.setProperty("font-size", fontSize, "important");
+    doc.body.style.setProperty("font-size", fontSize, "important");
+    doc.body.style.removeProperty("zoom");
+    if (scale === 1) {
+        doc.body.style.removeProperty("transform");
+        doc.body.style.removeProperty("transform-origin");
+        doc.body.style.removeProperty("width");
+        return;
+    }
+    doc.body.style.setProperty("transform", `scale(${scale})`);
+    doc.body.style.setProperty("transform-origin", "top left");
     doc.body.style.setProperty("width", `${100 / scale}%`);
 };
 
@@ -36,6 +46,12 @@ window.syncCurrentDictionary = function () {
     const dictInput = document.getElementById("dict-input");
     if (dictInput) {
         dictInput.value = currentDictionaryId;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("word")) {
+        params.set("dict", currentDictionaryId);
+        const nextUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, "", nextUrl);
     }
     window.updateMobileScaleDebug();
 };
@@ -175,16 +191,16 @@ window.loadDictionaries = function (word) {
 };
 
 window.updateMobileScaleDebug = function () {
+    document.body.classList.toggle("calibration-mode", window.isCalibrationModeEnabled());
     const valueEl = document.getElementById("mobile-scale-value");
     if (!valueEl) return;
-    const debugScale = window.getDictionaryDebugScale(currentDictionaryId);
-    valueEl.textContent = `${Math.round(debugScale * 100)}%`;
+    valueEl.textContent = `${Math.round(window.getDictionaryScale(currentDictionaryId) * 100)}%`;
 };
 
 window.adjustCurrentDictionaryDebugScale = function (delta) {
-    const nextValue = window.setDictionaryDebugScale(
+    const nextValue = window.setDictionaryScale(
         currentDictionaryId,
-        window.getDictionaryDebugScale(currentDictionaryId) + delta
+        window.getDictionaryScale(currentDictionaryId) + delta
     );
     window.applyScaleToLoadedIframes();
     window.updateMobileScaleDebug();

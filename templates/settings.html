@@ -28,20 +28,49 @@
             </div>
 
             <div class="settings-section">
-                <div class="section-title">Reading</div>
-            <div class="card">
-                <div class="row">
-                    <div>
-                        <div class="label">Text size</div>
-                        <div class="hint">Adjust the dictionary text size on this device.</div>
+                <div class="section-title">Dictionary Scale</div>
+                <div class="card">
+                    <div class="row">
+                        <div>
+                            <div class="label">Calibration mode</div>
+                            <div class="hint">Show temporary on-page scale controls on mobile for quick tuning.</div>
+                        </div>
+                        <button type="button" id="calibration-toggle" class="switch" aria-label="Toggle calibration mode"></button>
                     </div>
-                    <div class="scale-control">
-                        <button type="button" id="font-minus" class="icon-btn" aria-label="Decrease text size">−</button>
-                        <div id="font-scale-value" class="value">100%</div>
-                        <button type="button" id="font-plus" class="icon-btn" aria-label="Increase text size">+</button>
+                    <div class="row">
+                        <div>
+                            <div class="label">Longman</div>
+                            <div class="hint">Fine-tune the base scale for Longman.</div>
+                        </div>
+                        <div class="scale-control">
+                            <button type="button" id="longman-scale-minus" class="icon-btn" aria-label="Decrease Longman scale">−</button>
+                            <div id="longman-scale-value" class="value">100%</div>
+                            <button type="button" id="longman-scale-plus" class="icon-btn" aria-label="Increase Longman scale">+</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <div class="label">Cambridge</div>
+                            <div class="hint">Fine-tune the base scale for Cambridge.</div>
+                        </div>
+                        <div class="scale-control">
+                            <button type="button" id="cambridge-scale-minus" class="icon-btn" aria-label="Decrease Cambridge scale">−</button>
+                            <div id="cambridge-scale-value" class="value">100%</div>
+                            <button type="button" id="cambridge-scale-plus" class="icon-btn" aria-label="Increase Cambridge scale">+</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <div class="label">Oxford</div>
+                            <div class="hint">Fine-tune the base scale for Oxford.</div>
+                        </div>
+                        <div class="scale-control">
+                            <button type="button" id="oxford-scale-minus" class="icon-btn" aria-label="Decrease Oxford scale">−</button>
+                            <div id="oxford-scale-value" class="value">100%</div>
+                            <button type="button" id="oxford-scale-plus" class="icon-btn" aria-label="Increase Oxford scale">+</button>
+                        </div>
                     </div>
                 </div>
-            </div>
             </div>
 
             <div class="footer-note">Version: {{ app_version }}</div>

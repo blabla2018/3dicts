@@ -1,29 +1,49 @@
 const AUTO_PLAY_KEY = "autoPlay";
-const FONT_SCALE_KEY = "dictionaryFontScale";
-const FONT_SCALE_PRESETS = [0.9, 0.95, 1, 1.05, 1.1];
+const CALIBRATION_MODE_KEY = "dictionaryCalibrationMode";
+const DICTIONARY_SCALE_KEY = "dictionaryScale";
+const DICTIONARY_IDS = ["longman", "cambridge", "oxford"];
 
-function loadScale() {
-    const value = parseFloat(localStorage.getItem(FONT_SCALE_KEY) || "1");
-    if (!Number.isFinite(value)) return 1;
-    return FONT_SCALE_PRESETS.reduce((best, current) => {
-        return Math.abs(current - value) < Math.abs(best - value) ? current : best;
-    }, FONT_SCALE_PRESETS[2]);
+function loadDictionaryScaleMap() {
+    try {
+        const value = JSON.parse(localStorage.getItem(DICTIONARY_SCALE_KEY) || "{}");
+        return value && typeof value === "object" ? value : {};
+    } catch (_) {
+        return {};
+    }
 }
 
-function saveScale(value) {
-    localStorage.setItem(FONT_SCALE_KEY, String(value));
+function loadDictionaryScale(dictId) {
+    const stored = parseFloat(loadDictionaryScaleMap()[dictId] || "");
+    if (Number.isFinite(stored)) return stored;
+    return 1;
 }
 
-function renderScale(value) {
-    const target = document.getElementById("font-scale-value");
+function saveDictionaryScale(dictId, value) {
+    const safeValue = Math.min(1.25, Math.max(0.85, value));
+    const scales = loadDictionaryScaleMap();
+    scales[dictId] = Number(safeValue.toFixed(2));
+    localStorage.setItem(DICTIONARY_SCALE_KEY, JSON.stringify(scales));
+    return scales[dictId];
+}
+
+function renderDictionaryScale(dictId) {
+    const target = document.getElementById(`${dictId}-scale-value`);
     if (target) {
-        target.textContent = `${Math.round(value * 100)}%`;
+        target.textContent = `${Math.round(loadDictionaryScale(dictId) * 100)}%`;
     }
 }
 
 function renderAutoplay() {
     const enabled = localStorage.getItem(AUTO_PLAY_KEY) === "true";
     const toggle = document.getElementById("autoplay-toggle");
+    if (toggle) {
+        toggle.classList.toggle("active", enabled);
+    }
+}
+
+function renderCalibrationMode() {
+    const enabled = localStorage.getItem(CALIBRATION_MODE_KEY) === "true";
+    const toggle = document.getElementById("calibration-toggle");
     if (toggle) {
         toggle.classList.toggle("active", enabled);
     }
@@ -38,25 +58,35 @@ if (autoplayToggle) {
     });
 }
 
-const fontMinus = document.getElementById("font-minus");
-if (fontMinus) {
-    fontMinus.addEventListener("click", function () {
-        const currentIndex = FONT_SCALE_PRESETS.indexOf(loadScale());
-        const next = FONT_SCALE_PRESETS[Math.max(0, currentIndex - 1)];
-        saveScale(next);
-        renderScale(next);
+const calibrationToggle = document.getElementById("calibration-toggle");
+if (calibrationToggle) {
+    calibrationToggle.addEventListener("click", function () {
+        const next = !(localStorage.getItem(CALIBRATION_MODE_KEY) === "true");
+        localStorage.setItem(CALIBRATION_MODE_KEY, next ? "true" : "false");
+        renderCalibrationMode();
     });
 }
 
-const fontPlus = document.getElementById("font-plus");
-if (fontPlus) {
-    fontPlus.addEventListener("click", function () {
-        const currentIndex = FONT_SCALE_PRESETS.indexOf(loadScale());
-        const next = FONT_SCALE_PRESETS[Math.min(FONT_SCALE_PRESETS.length - 1, currentIndex + 1)];
-        saveScale(next);
-        renderScale(next);
-    });
-}
+DICTIONARY_IDS.forEach((dictId) => {
+    const minus = document.getElementById(`${dictId}-scale-minus`);
+    const plus = document.getElementById(`${dictId}-scale-plus`);
+
+    if (minus) {
+        minus.addEventListener("click", function () {
+            saveDictionaryScale(dictId, loadDictionaryScale(dictId) - 0.01);
+            renderDictionaryScale(dictId);
+        });
+    }
+
+    if (plus) {
+        plus.addEventListener("click", function () {
+            saveDictionaryScale(dictId, loadDictionaryScale(dictId) + 0.01);
+            renderDictionaryScale(dictId);
+        });
+    }
+
+    renderDictionaryScale(dictId);
+});
 
 renderAutoplay();
-renderScale(loadScale());
+renderCalibrationMode();
