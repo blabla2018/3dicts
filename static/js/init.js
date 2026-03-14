@@ -17,6 +17,7 @@ window.onload = function () {
         window.setMobileDictionary(mobileDictionaryIndex);
         if (!window.isMobileLayout()) {
             document.body.classList.remove("search-overlay-open");
+            window.ensureAllDictionariesLoaded();
         }
     });
 

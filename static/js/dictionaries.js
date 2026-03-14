@@ -1,4 +1,6 @@
 // Dictionary scaling, navigation, iframe lifecycle, and loading
+let dictionaryRequestMap = {};
+
 window.applyDictionaryScale = function (doc, dictId) {
     if (!doc || !doc.documentElement || !doc.body) return;
     if (doc.body.dataset.fixedScale === "1") {
@@ -56,6 +58,23 @@ window.syncCurrentDictionary = function () {
     window.updateMobileScaleDebug();
 };
 
+window.ensureDictionaryLoaded = function (dictId) {
+    const iframe = document.getElementById(dictId);
+    const targetUrl = dictionaryRequestMap[dictId];
+    if (!iframe || !targetUrl) return;
+    if (iframe.dataset.loadedUrl === targetUrl) return;
+    iframe.src = `/proxy?url=${targetUrl}`;
+};
+
+window.ensureVisibleMobileDictionaryLoaded = function () {
+    if (!window.isMobileLayout()) return;
+    window.ensureDictionaryLoaded(currentDictionaryId);
+};
+
+window.ensureAllDictionariesLoaded = function () {
+    Object.keys(dictionaryRequestMap).forEach(window.ensureDictionaryLoaded);
+};
+
 window.setMobileDictionary = function (index) {
     if (!window.isMobileLayout()) return;
 
@@ -69,6 +88,7 @@ window.setMobileDictionary = function (index) {
     });
 
     window.syncCurrentDictionary();
+    window.ensureVisibleMobileDictionaryLoaded();
 };
 
 window.swipeMobileDictionary = function (direction) {
@@ -128,17 +148,20 @@ window.loadDictionaries = function (word) {
         { id: "cambridge", url: `https://dictionary.cambridge.org/dictionary/english/${slug}` },
         { id: "oxford", url: `https://www.oxfordlearnersdictionaries.com/definition/english/${slug}` }
     ];
+    dictionaryRequestMap = Object.fromEntries(dictionaries.map((dict) => [dict.id, dict.url]));
 
     dictionaries.forEach((dict) => {
         const iframe = document.getElementById(dict.id);
         const link = document.getElementById(`${dict.id}-link`);
         if (link) link.href = dict.url;
         if (!iframe) return;
+        iframe.dataset.loadedUrl = "";
 
         iframe.onload = function () {
             try {
                 const currentProxyUrl = iframe.contentWindow.location.href || iframe.src;
                 const currentOriginalUrl = window.getOriginalUrlFromProxy(currentProxyUrl, dict.url);
+                iframe.dataset.loadedUrl = dict.url;
                 if (link) {
                     link.href = currentOriginalUrl;
                 }
@@ -182,12 +205,14 @@ window.loadDictionaries = function (word) {
                 console.error("Access denied:", error);
             }
         };
-
-        iframe.src = `/proxy?url=${dict.url}`;
     });
 
     window.setupMobileSwipe();
-    window.setMobileDictionary(mobileDictionaryIndex);
+    if (window.isMobileLayout()) {
+        window.setMobileDictionary(mobileDictionaryIndex);
+    } else {
+        window.ensureAllDictionariesLoaded();
+    }
 };
 
 window.updateMobileScaleDebug = function () {
