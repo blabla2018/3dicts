@@ -48,7 +48,7 @@ window.setupMobileSearchFab = function () {
     fab.dataset.bound = "1";
 
     const storageKey = "mobileSearchFabPosition";
-    const size = 54;
+    const size = 58;
     const margin = 12;
     let startPointerX = 0;
     let startPointerY = 0;

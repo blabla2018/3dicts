@@ -3,7 +3,8 @@ window.applyDictionaryScale = function (doc, dictId) {
     if (!doc || !doc.documentElement || !doc.body) return;
     const userScale = window.getDictionaryFontScale();
     const baseScale = BASE_DICTIONARY_SCALE[dictId] || 1;
-    const scale = userScale * baseScale;
+    const debugScale = window.getDictionaryDebugScale(dictId);
+    const scale = userScale * baseScale * debugScale;
     const fontSize = `${16 * scale}px`;
     doc.documentElement.style.setProperty("font-size", fontSize, "important");
     doc.body.style.setProperty("font-size", fontSize, "important");
@@ -36,6 +37,7 @@ window.syncCurrentDictionary = function () {
     if (dictInput) {
         dictInput.value = currentDictionaryId;
     }
+    window.updateMobileScaleDebug();
 };
 
 window.setMobileDictionary = function (index) {
@@ -170,4 +172,21 @@ window.loadDictionaries = function (word) {
 
     window.setupMobileSwipe();
     window.setMobileDictionary(mobileDictionaryIndex);
+};
+
+window.updateMobileScaleDebug = function () {
+    const valueEl = document.getElementById("mobile-scale-value");
+    if (!valueEl) return;
+    const debugScale = window.getDictionaryDebugScale(currentDictionaryId);
+    valueEl.textContent = `${Math.round(debugScale * 100)}%`;
+};
+
+window.adjustCurrentDictionaryDebugScale = function (delta) {
+    const nextValue = window.setDictionaryDebugScale(
+        currentDictionaryId,
+        window.getDictionaryDebugScale(currentDictionaryId) + delta
+    );
+    window.applyScaleToLoadedIframes();
+    window.updateMobileScaleDebug();
+    return nextValue;
 };

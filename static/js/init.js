@@ -108,6 +108,20 @@ window.onload = function () {
         });
     }
 
+    const mobileScaleMinus = document.getElementById("mobile-scale-minus");
+    if (mobileScaleMinus) {
+        mobileScaleMinus.addEventListener("click", function () {
+            window.adjustCurrentDictionaryDebugScale(-0.01);
+        });
+    }
+
+    const mobileScalePlus = document.getElementById("mobile-scale-plus");
+    if (mobileScalePlus) {
+        mobileScalePlus.addEventListener("click", function () {
+            window.adjustCurrentDictionaryDebugScale(0.01);
+        });
+    }
+
     document.addEventListener("keydown", window.handleGlobalKeydown);
 
     document.addEventListener("click", function (event) {
@@ -178,6 +192,7 @@ window.onload = function () {
     });
 
     window.updateSearchClearButton();
+    window.updateMobileScaleDebug();
 
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/static/sw.js").catch(() => {});

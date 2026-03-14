@@ -309,8 +309,8 @@
             position: fixed;
             left: 0;
             top: 0;
-            width: 54px;
-            height: 54px;
+            width: 58px;
+            height: 58px;
             border: none;
             border-radius: 50%;
             background: #0b6bdb;
@@ -324,9 +324,45 @@
             opacity: 0;
         }
 
+        .mobile-scale-debug {
+            display: none;
+            position: fixed;
+            left: 14px;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+            z-index: 1340;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid #d7e0ea;
+            box-shadow: 0 8px 20px rgba(16, 42, 67, 0.16);
+            backdrop-filter: blur(8px);
+        }
+
+        .mobile-scale-debug-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #d7e0ea;
+            border-radius: 999px;
+            background: #ffffff;
+            color: #26415e;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .mobile-scale-debug-value {
+            min-width: 52px;
+            text-align: center;
+            color: #26415e;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
         .mobile-search-fab svg {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
         }
 
         @media (max-width: 900px) {
@@ -335,6 +371,10 @@
             }
 
             body.search-overlay-open .mobile-search-fab {
+                display: none;
+            }
+
+            body.search-overlay-open .mobile-scale-debug {
                 display: none;
             }
 
@@ -471,5 +511,9 @@
 
             .mobile-search-fab.is-ready {
                 opacity: 1;
+            }
+
+            .mobile-scale-debug {
+                display: inline-flex;
             }
         }

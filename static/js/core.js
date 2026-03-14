@@ -14,10 +14,11 @@ const SEARCH_HISTORY_KEY = "searchHistory";
 const CURRENT_DICTIONARY_KEY = "currentDictionaryId";
 const AUTO_PLAY_KEY = "autoPlay";
 const FONT_SCALE_KEY = "dictionaryFontScale";
+const DICTIONARY_DEBUG_SCALE_KEY = "dictionaryDebugScale";
 const BASE_DICTIONARY_SCALE = {
     longman: 1,
     cambridge: 1,
-    oxford: 1.06
+    oxford: 1.07
 };
 
 window.isMobileLayout = function () {
@@ -58,6 +59,28 @@ window.getDictionaryFontScale = function () {
     return presets.reduce((best, current) => {
         return Math.abs(current - value) < Math.abs(best - value) ? current : best;
     }, 1);
+};
+
+window.getDictionaryDebugScaleMap = function () {
+    try {
+        const value = JSON.parse(localStorage.getItem(DICTIONARY_DEBUG_SCALE_KEY) || "{}");
+        return value && typeof value === "object" ? value : {};
+    } catch (_) {
+        return {};
+    }
+};
+
+window.getDictionaryDebugScale = function (dictId) {
+    const value = parseFloat(window.getDictionaryDebugScaleMap()[dictId] || "1");
+    return Number.isFinite(value) ? value : 1;
+};
+
+window.setDictionaryDebugScale = function (dictId, value) {
+    const safeValue = Math.min(1.25, Math.max(0.85, value));
+    const scales = window.getDictionaryDebugScaleMap();
+    scales[dictId] = Number(safeValue.toFixed(2));
+    localStorage.setItem(DICTIONARY_DEBUG_SCALE_KEY, JSON.stringify(scales));
+    return scales[dictId];
 };
 
 window.extractHistoryWordFromUrl = function (url) {
