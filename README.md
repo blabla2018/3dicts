@@ -1,134 +1,89 @@
 # 3dicts
 
-## Overview
-`3dicts` is a web app for comparing English dictionary entries side by side. It shows the same word from three sources in one interface:
+`3dicts` is a small web app for comparing English dictionary entries from three sources in one place:
 
-- Oxford
-- Cambridge
 - Longman
+- Cambridge
+- Oxford
 
-The main goal is simple: help users compare definitions, examples, pronunciation, and usage faster, without opening many browser tabs.
+Search once and read the same word across all three dictionaries without opening multiple tabs.
 
-## Who It Is For
-This project is designed for people who study English and often check more than one dictionary to understand a word better.
-
-Typical use case:
-- search for a word once
-- read several dictionary entries in parallel
-- compare meaning, examples, and pronunciation
-
-## Product Principles
-The interface should stay:
-
-- simple
-- fast
-- predictable
-- easy to use
-
-The app should follow standard web and mobile behavior. The goal is not experimental UX, but a clean and familiar interface with as few actions as possible.
-
-## Core Flow
-The main user flow is word search:
-
-1. Open the app.
-2. Open search.
-3. The input is already focused.
-4. Start typing immediately.
-
-This flow should always feel quick and frictionless.
-
-## Dictionary Content Processing
-Dictionary pages are not shown as-is. The app fetches content from official dictionary sites and cleans it before display.
-
-Processing includes:
-
-- removing ads, headers, navigation, and secondary UI
-- removing unnecessary HTML elements
-- stripping or overriding original CSS
-- removing JavaScript that is not needed for reading the entry
-- adapting images for smaller screens
-- rewriting links so they open inside the app
-
-The app keeps the important parts of each entry:
-
-- definitions
-- examples
-- transcription
-- pronunciation audio
-
-The goal is to preserve core dictionary content while making it compact and readable.
+## What It Does
+- shows cleaned dictionary entries in one interface
+- keeps navigation inside the app
+- supports pronunciation audio
+- stores recent words locally in the browser
+- works on desktop and mobile
+- supports PWA installation on iPhone/iPad
 
 ## Layout
-The app is responsive and works on both desktop and mobile.
 
 ### Desktop
 - Wide window: all three dictionaries are visible at once.
 - Narrow window: one dictionary is visible at a time.
-- Left and right arrow keys switch dictionaries in narrow mode.
-
-Keyboard shortcuts:
-- `/` open search
-- `Space` play pronunciation
-- `Escape` close search
+- `/` opens search.
+- `Space` plays pronunciation.
+- `Escape` closes search.
+- `←` and `→` switch dictionaries in narrow mode.
 
 ### Mobile
 - One dictionary is visible at a time.
-- Dictionaries can be switched with swipe gestures.
-- A floating round search button opens search.
-- The button can be moved, and its position is saved.
+- Swipe left and right to switch dictionaries.
+- A floating round search button opens full-screen search.
+- Mobile loads the current dictionary first and loads the others on demand.
 
-## Search Overlay
-On mobile and narrow layouts, search opens as a full-screen overlay.
+## Settings
+The app includes a dedicated settings page with:
 
-It includes:
-
-- a search input at the top
-- recent words
-- suggestions while typing
-
-The input stays at the top while the list scrolls.
-
-Recent words are stored in browser `localStorage`.
+- auto-play pronunciation
+- per-dictionary scale:
+  - Longman
+  - Cambridge
+  - Oxford
+- calibration mode for quick mobile tuning
 
 ## Missing Words
-If a word is not found, dictionaries may return suggestion pages such as “Did you mean”.
+If a word is not found, the app shows either:
 
-The app should display those suggestion states correctly for each dictionary.
+- the dictionary’s suggestion state, when available
+- or a minimal built-in status page such as `Not found` or `Not available`
 
-## PWA Support
-The project supports Progressive Web App behavior so it can be installed on iPhone/iPad and launched like a standalone app.
+## Local Storage
+The app stores user-specific state in the browser, including:
 
-This includes:
+- recent search history
+- current dictionary in narrow/mobile mode
+- search draft
+- dictionary scale settings
+- calibration mode
+- floating search button position
+- pronunciation auto-play preference
 
-- manifest support
-- installable app behavior
-- mobile-friendly standalone UI
+## Run Locally
+Install dependencies:
 
-## Features
-- Unified search across Oxford, Cambridge, and Longman
-- Cleaned dictionary cards inside a single interface
-- Audio pronunciation support
-- Local recent history
-- Responsive desktop and mobile layout
-- PWA support
+```bash
+pip install -r requirements.txt
+```
 
-## Installation
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Run the application:
-   ```bash
-   python app.py
-   ```
+Run:
 
-## Usage
+```bash
+python app.py
+```
+
 Open:
 
 `http://127.0.0.1:5002/`
 
+Development example:
+
+```bash
+PORT=5001 FLASK_DEBUG=1 python app.py
+```
+
 ## Docker
-Build and run with Docker:
+Build and run:
 
 ```bash
 docker build -t 3dicts .
