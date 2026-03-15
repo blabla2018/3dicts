@@ -43,6 +43,81 @@ window.buildSearchUrl = function (word) {
     return `?word=${encodeURIComponent(word)}&dict=${encodeURIComponent(currentDictionaryId)}`;
 };
 
+window.buildHistoryState = function (word) {
+    return {
+        word: (word || "").trim(),
+        dict: currentDictionaryId
+    };
+};
+
+window.updateDocumentTitle = function (word) {
+    const normalizedWord = (word || "").trim();
+    document.title = normalizedWord ? `Dict Search: ${normalizedWord}` : "Dictionary Search";
+};
+
+window.applyUrlState = function () {
+    const wordInput = document.getElementById("word-input");
+    const urlWord = (window.getQueryParam("word") || "").trim();
+    const urlDict = window.getQueryParam("dict");
+
+    if (mobileDictionaryIds.includes(urlDict)) {
+        mobileDictionaryIndex = mobileDictionaryIds.indexOf(urlDict);
+    } else {
+        const savedDict = localStorage.getItem(CURRENT_DICTIONARY_KEY);
+        if (mobileDictionaryIds.includes(savedDict)) {
+            mobileDictionaryIndex = mobileDictionaryIds.indexOf(savedDict);
+        }
+    }
+
+    window.setMobileDictionary(mobileDictionaryIndex);
+    window.syncCurrentDictionary();
+
+    currentSearchWord = urlWord;
+    currentSearchDraft = "";
+    if (wordInput) {
+        wordInput.value = urlWord;
+        window.updateSearchClearButton();
+    }
+    window.updateDocumentTitle(urlWord);
+
+    if (urlWord) {
+        window.saveSearchHistory(urlWord);
+        window.loadDictionaries(urlWord);
+    } else {
+        window.clearDictionaries();
+    }
+};
+
+window.performSearch = function (word, options = {}) {
+    const normalizedWord = (word || "").trim();
+    if (!normalizedWord) return;
+
+    currentSearchWord = normalizedWord;
+    currentSearchDraft = "";
+    window.saveSearchHistory(normalizedWord);
+
+    const wordInput = document.getElementById("word-input");
+    if (wordInput) {
+        wordInput.value = normalizedWord;
+        window.updateSearchClearButton();
+    }
+
+    if (options.pushState !== false) {
+        window.history.pushState(
+            window.buildHistoryState(normalizedWord),
+            "",
+            window.buildSearchUrl(normalizedWord)
+        );
+    }
+
+    window.updateDocumentTitle(normalizedWord);
+    window.hideAutocomplete();
+    if (window.isMobileLayout()) {
+        window.closeSearchOverlay();
+    }
+    window.loadDictionaries(normalizedWord);
+};
+
 window.isAutoPlayEnabled = function () {
     return localStorage.getItem(AUTO_PLAY_KEY) === "true";
 };
@@ -455,11 +530,7 @@ window.selectAutocomplete = function (word) {
     if (!input) return;
 
     input.value = word;
-    currentSearchWord = word;
-    currentSearchDraft = "";
-    window.saveSearchHistory(word);
-    window.updateSearchClearButton();
-    window.location.search = window.buildSearchUrl(word);
+    window.performSearch(word);
 };
 
 window.handleAutocompleteKeydown = function (event) {
@@ -574,10 +645,7 @@ window.showSearchHelper = function (word, x, y) {
 
 window.executeSearch = function () {
     if (!selectedWord) return;
-    currentSearchWord = selectedWord;
-    currentSearchDraft = "";
-    window.saveSearchHistory(selectedWord);
-    window.location.search = window.buildSearchUrl(selectedWord);
+    window.performSearch(selectedWord);
 };
 
 window.updateAudioFromCambridgeDoc = function (doc) {
@@ -654,7 +722,7 @@ window.syncCurrentDictionary = function () {
     if (params.get("word")) {
         params.set("dict", currentDictionaryId);
         const nextUrl = `${window.location.pathname}?${params.toString()}`;
-        window.history.replaceState(null, "", nextUrl);
+        window.history.replaceState(window.buildHistoryState(params.get("word")), "", nextUrl);
     }
     window.updateMobileScaleDebug();
 };
@@ -664,7 +732,14 @@ window.ensureDictionaryLoaded = function (dictId) {
     const targetUrl = dictionaryRequestMap[dictId];
     if (!iframe || !targetUrl) return;
     if (iframe.dataset.loadedUrl === targetUrl) return;
-    iframe.src = `/proxy?url=${targetUrl}`;
+    const proxyUrl = `/proxy?url=${targetUrl}`;
+    try {
+        if (iframe.contentWindow && iframe.contentWindow.location) {
+            iframe.contentWindow.location.replace(proxyUrl);
+            return;
+        }
+    } catch (_) {}
+    iframe.src = proxyUrl;
 };
 
 window.ensureVisibleMobileDictionaryLoaded = function () {
@@ -674,6 +749,30 @@ window.ensureVisibleMobileDictionaryLoaded = function () {
 
 window.ensureAllDictionariesLoaded = function () {
     Object.keys(dictionaryRequestMap).forEach(window.ensureDictionaryLoaded);
+};
+
+window.clearDictionaries = function () {
+    ["longman", "cambridge", "oxford"].forEach((id) => {
+        const iframe = document.getElementById(id);
+        const link = document.getElementById(`${id}-link`);
+        if (iframe) {
+            try {
+                if (iframe.contentWindow && iframe.contentWindow.location) {
+                    iframe.contentWindow.location.replace("about:blank");
+                } else {
+                    iframe.src = "about:blank";
+                }
+            } catch (_) {
+                iframe.src = "about:blank";
+            }
+            iframe.dataset.loadedUrl = "";
+        }
+        if (link) {
+            link.href = "#";
+        }
+    });
+    dictionaryRequestMap = {};
+    currentAudioUrl = null;
 };
 
 window.setMobileDictionary = function (index) {
@@ -871,15 +970,12 @@ window.onload = function () {
     const initialWord = window.getQueryParam("word");
     const wordInput = document.getElementById("word-input");
     const searchForm = document.querySelector(".search-form");
-
-    if (initialWord && wordInput) {
-        currentSearchWord = initialWord.trim().toLowerCase();
-        currentSearchDraft = "";
-        wordInput.value = currentSearchWord;
-        window.saveSearchHistory(currentSearchWord);
-        window.updateSearchClearButton();
-        window.loadDictionaries(currentSearchWord);
-    }
+    window.history.replaceState(
+        window.buildHistoryState(initialWord || ""),
+        "",
+        window.location.pathname + window.location.search
+    );
+    window.applyUrlState();
 
     if (wordInput) {
         const shouldAutoFocus = !initialWord && !wordInput.value.trim() && !window.isMobileLayout();
@@ -928,12 +1024,10 @@ window.onload = function () {
     }
 
     if (searchForm && wordInput) {
-        searchForm.addEventListener("submit", function () {
-            currentSearchWord = wordInput.value.trim();
-            currentSearchDraft = "";
-            window.saveSearchHistory(currentSearchWord);
-            window.updateSearchClearButton();
+        searchForm.addEventListener("submit", function (event) {
+            event.preventDefault();
             window.syncCurrentDictionary();
+            window.performSearch(wordInput.value);
         });
     }
 
@@ -967,6 +1061,10 @@ window.onload = function () {
     }
 
     document.addEventListener("keydown", window.handleGlobalKeydown);
+
+    window.addEventListener("popstate", function () {
+        window.applyUrlState();
+    });
 
     document.addEventListener("click", function (event) {
         const dropdown = document.getElementById("autocomplete-dropdown");
